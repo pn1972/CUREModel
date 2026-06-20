@@ -163,6 +163,103 @@
           }
         ];
 
+        const glossaryData = [
+          { term: "Access control / RBAC", desc: "การกำหนดสิทธิ์เข้าถึงข้อมูลหรือฟังก์ชันตามบทบาท เช่น แพทย์ พยาบาล IT หรือผู้ดูแลระบบ" },
+          { term: "Accountability", desc: "ความชัดเจนว่าใครมีหน้าที่รับผิดชอบต่อการเลือก ใช้ เฝ้าระวัง และจัดการผลกระทบจาก AI" },
+          { term: "AI (Artificial Intelligence)", desc: "ระบบคอมพิวเตอร์ที่สามารถวิเคราะห์ข้อมูล เรียนรู้รูปแบบ และให้ผลลัพธ์หรือคำแนะนำเพื่อช่วยการตัดสินใจ" },
+          { term: "Alert fatigue", desc: "ภาวะที่ผู้ใช้ละเลยการแจ้งเตือน เพราะระบบแจ้งเตือนบ่อยเกินไปหรือมีผลบวกลวงจำนวนมาก" },
+          { term: "Anonymization", desc: "การทำให้ข้อมูลไม่สามารถระบุตัวบุคคลได้อีกตามสมควร แม้ใช้ข้อมูลอื่นประกอบ" },
+          { term: "API (Application Programming Interface)", desc: "ช่องทางให้ระบบคอมพิวเตอร์สองระบบสื่อสารหรือแลกเปลี่ยนข้อมูลกันอย่างเป็นมาตรฐาน" },
+          { term: "AUC (Area Under the Curve)", desc: "ค่าชี้วัดภาพรวมของความสามารถในการแยกผู้ป่วยที่มีและไม่มีภาวะเป้าหมาย ค่าใกล้ 1 ดีกว่า ค่าใกล้ 0.5 ใกล้เคียงการเดาสุ่ม" },
+          { term: "Audit trail", desc: "บันทึกย้อนหลังที่แสดงว่าใครทำอะไร เมื่อใด กับข้อมูลหรือผลลัพธ์ใด ช่วยใช้ตรวจสอบและรับผิดชอบเมื่อเกิดปัญหา" },
+          { term: "Bias", desc: "อคติหรือความเอนเอียงของข้อมูลหรือโมเดลที่ทำให้ผลลัพธ์ต่างกันอย่างไม่เหมาะสมระหว่างกลุ่มประชากร" },
+          { term: "Budget impact", desc: "ผลกระทบต่องบประมาณของโรงพยาบาลทั้งระยะสั้นและระยะยาว เช่น ค่าบริการรายปี ค่าบุคลากร และค่าโครงสร้างพื้นฐาน" },
+          { term: "Calibration", desc: "ความสอดคล้องระหว่างคะแนนความเสี่ยงที่ AI รายงานกับความเสี่ยงจริง เช่น AI บอกเสี่ยง 80% แล้วในกลุ่มนั้นควรเกิดเหตุการณ์ใกล้เคียง 80%" },
+          { term: "CE marking / EU MDR", desc: "เครื่องหมายหรือกรอบกำกับดูแลเครื่องมือแพทย์ในสหภาพยุโรป ใช้ประกอบการพิจารณาคุณภาพและความปลอดภัย" },
+          { term: "Change management", desc: "การบริหารการเปลี่ยนแปลง เช่น การสื่อสาร ฝึกอบรม รับฟังปัญหา และปรับ workflow เพื่อให้บุคลากรใช้ AI ได้จริง" },
+          { term: "Clinical reliability", desc: "ความน่าเชื่อถือของผล AI ในบริบทการดูแลผู้ป่วยจริง ไม่ใช่ดูเพียงความแม่นยำเฉลี่ยจากงานวิจัย" },
+          { term: "Confidence score", desc: "คะแนนความมั่นใจของ AI ต่อผลลัพธ์ เช่น 0.85 หรือ 85% แต่ไม่เท่ากับความถูกต้องเสมอไป ต้องตีความร่วมกับบริบท" },
+          { term: "Cost-effectiveness analysis", desc: "การเปรียบเทียบต้นทุนกับผลลัพธ์สุขภาพหรือประโยชน์ที่ได้ เพื่อดูว่าคุ้มค่ากว่าทางเลือกเดิมหรือไม่" },
+          { term: "CURE Model", desc: "กรอบประเมินความเหมาะสมของ AI ทางการแพทย์ 4 มิติ ได้แก่ Clinical, Usability, Regulatory/Risk และ Ethics/Equity" },
+          { term: "Cybersecurity", desc: "การป้องกันระบบและข้อมูลจากการเข้าถึง แก้ไข ทำลาย หรือรั่วไหลโดยไม่ได้รับอนุญาต" },
+          { term: "Data governance", desc: "ระบบกำกับดูแลข้อมูล เช่น ใครเป็นเจ้าของข้อมูล ใครเข้าถึงได้ ใช้เพื่ออะไร เก็บนานเท่าไร และตรวจสอบอย่างไร" },
+          { term: "Data integrity", desc: "ความครบถ้วน ถูกต้อง ไม่ถูกแก้ไขโดยไม่ได้รับอนุญาต และตรวจสอบแหล่งที่มาของข้อมูลได้" },
+          { term: "Data ownership", desc: "สิทธิและอำนาจในการควบคุมข้อมูล ต้องแยกให้ชัดระหว่างสิทธิของผู้ป่วย สิทธิของโรงพยาบาล และสิทธิของผู้ขาย" },
+          { term: "De-identification", desc: "การลดหรือลบข้อมูลที่ระบุตัวบุคคลออก เพื่อลดความเสี่ยงการระบุตัวผู้ป่วย" },
+          { term: "DICOM", desc: "มาตรฐานไฟล์และการสื่อสารสำหรับภาพทางการแพทย์ เช่น X-ray, CT, MRI และ ultrasound" },
+          { term: "DPA (Data Processing Agreement)", desc: "ข้อตกลงระหว่างผู้ควบคุมข้อมูลและผู้ประมวลผลข้อมูล เพื่อกำหนดหน้าที่ ขอบเขต และมาตรการคุ้มครองข้อมูล" },
+          { term: "DPIA (Data Protection Impact Assessment)", desc: "การประเมินผลกระทบด้านการคุ้มครองข้อมูลส่วนบุคคล โดยเฉพาะโครงการที่ใช้ข้อมูลสุขภาพหรือข้อมูลอ่อนไหวจำนวนมาก" },
+          { term: "DR Plan (Disaster Recovery Plan)", desc: "แผนกู้คืนระบบเมื่อเกิดเหตุร้ายแรง เช่น ระบบล่ม ข้อมูลเสียหาย ไฟไหม้ หรือถูกโจมตีไซเบอร์" },
+          { term: "EMR/EHR", desc: "เวชระเบียนอิเล็กทรอนิกส์ของผู้ป่วย ใช้เก็บข้อมูลการรักษา ประวัติ ตรวจร่างกาย ผลการตรวจทางห้องปฏิบัติการ และคำสั่งรักษา" },
+          { term: "Encryption", desc: "การเข้ารหัสข้อมูลเพื่อให้ผู้ที่ไม่มีสิทธิ์ไม่สามารถอ่านข้อมูลได้ ทั้งขณะส่งผ่านเครือข่ายและขณะจัดเก็บ" },
+          { term: "Equity", desc: "ความเสมอภาคในการเข้าถึงประโยชน์จาก AI โดยคำนึงถึงกลุ่มเปราะบาง คนชนบท ผู้สูงอายุ ผู้พิการ หรือผู้มีข้อจำกัดด้านทรัพยากร" },
+          { term: "Exit strategy", desc: "แผนเมื่อเลิกใช้หรือเปลี่ยนผู้ขาย เช่น การส่งคืน/ลบข้อมูล การส่งออกข้อมูล และความต่อเนื่องของบริการ" },
+          { term: "Explainability", desc: "ความสามารถของ AI ในการอธิบายเหตุผลหรือหลักฐานประกอบผลลัพธ์ เพื่อให้ผู้ใช้เข้าใจและตรวจสอบได้" },
+          { term: "External validation", desc: "การทดสอบ AI กับข้อมูลจากแหล่งอื่นนอกเหนือจากข้อมูลที่ใช้พัฒนาโมเดล เพื่อลดความเสี่ยงว่า AI เก่งเฉพาะชุดข้อมูลเดิม" },
+          { term: "Fairness", desc: "ความเป็นธรรมของ AI คือไม่ทำให้ผู้ป่วยบางกลุ่มได้ผลลัพธ์ด้อยกว่าโดยไม่มีเหตุผลอันสมควร" },
+          { term: "False negative", desc: "AI แจ้งว่าปกติหรือไม่มีโรค ทั้งที่ความจริงมีโรค อาจทำให้วินิจฉัยล่าช้าหรือพลาดการรักษาที่จำเป็น" },
+          { term: "False positive", desc: "AI แจ้งว่าผิดปกติหรือมีโรค ทั้งที่ความจริงไม่มีโรค อาจทำให้ตรวจเพิ่ม รักษาเกินจำเป็น หรือเกิดความกังวล" },
+          { term: "FHIR", desc: "มาตรฐานข้อมูลสุขภาพรุ่นใหม่ที่ช่วยให้ระบบต่าง ๆ เชื่อมต่อและแลกเปลี่ยนข้อมูลได้ง่ายขึ้น" },
+          { term: "Generalizability", desc: "ความสามารถของ AI ในการทำงานได้ดีเมื่อใช้กับประชากร สถานที่ เครื่องมือ หรือช่วงเวลาที่ต่างจากข้อมูลที่ใช้พัฒนา" },
+          { term: "Health literacy", desc: "ความสามารถของผู้ป่วยหรือประชาชนในการเข้าใจข้อมูลสุขภาพ จึงควรใช้คำอธิบาย AI ที่ไม่ซับซ้อนเกินไป" },
+          { term: "Heatmap", desc: "ภาพหรือสีที่แสดงตำแหน่งหรือบริเวณที่ AI ให้ความสำคัญ เช่น จุดบนภาพ X-ray ที่ทำให้ AI สงสัยโรค" },
+          { term: "HIS (Hospital Information System)", desc: "ระบบสารสนเทศหลักของโรงพยาบาลที่ใช้บริหารข้อมูลบริการ เช่น เวชระเบียน นัดหมาย คำสั่งยา และการเงิน" },
+          { term: "HL7", desc: "มาตรฐานแลกเปลี่ยนข้อมูลสุขภาพระหว่างระบบ เช่น ข้อมูลผู้ป่วย คำสั่งตรวจ และผลตรวจ" },
+          { term: "Human-in-the-loop", desc: "การมีมนุษย์กำกับ ตรวจสอบ หรืออนุมัติการตัดสินใจสำคัญของ AI โดยเฉพาะงานที่กระทบการวินิจฉัยหรือการรักษา" },
+          { term: "Incident response plan", desc: "แผนตอบสนองเมื่อเกิดเหตุ เช่น ข้อมูลรั่ว ระบบล่ม ผล AI ผิดพลาด หรือถูกโจมตีไซเบอร์" },
+          { term: "Informed consent", desc: "การให้ข้อมูลอย่างเพียงพอแก่ผู้ป่วยหรือเจ้าของข้อมูลก่อนขอความยินยอม รวมถึงวัตถุประสงค์ ประโยชน์ ความเสี่ยง และทางเลือก" },
+          { term: "Intended use", desc: "วัตถุประสงค์การใช้งานที่ผู้พัฒนาหรือโรงพยาบาลกำหนดไว้ เช่น ใช้เพื่อช่วยคัดกรอง ไม่ใช้ใช้แทนการวินิจฉัยของแพทย์" },
+          { term: "Interpretability", desc: "ความสามารถของผู้ใช้ในการตีความผล AI ได้ถูกต้อง เช่น เข้าใจว่าคะแนน ความเสี่ยง หรือสีบนภาพหมายถึงอะไร" },
+          { term: "IRB/EC", desc: "คณะกรรมการจริยธรรมการวิจัยในมนุษย์ ใช้พิจารณาเมื่อโครงการเข้าข่ายวิจัยหรือใช้ข้อมูล/ผู้ป่วยในลักษณะที่ต้องกำกับด้านจริยธรรม" },
+          { term: "Latency/Turnaround time", desc: "เวลาตั้งแต่ส่งข้อมูลเข้า AI จนได้ผลลัพธ์กลับมา ต้องเหมาะกับความเร่งด่วนของงาน เช่น stroke ต้องเร็วมาก" },
+          { term: "Lawful basis", desc: "ฐานทางกฎหมายที่อนุญาตให้เก็บ ใช้ หรือเปิดเผยข้อมูลส่วนบุคคล เช่น ความยินยอม สัญญา ประโยชน์ด้านสาธารณสุข หรือหน้าที่ตามกฎหมาย" },
+          { term: "Liability", desc: "ความรับผิดทางกฎหมายหรือวิชาชีพเมื่อเกิดความเสียหาย เช่น ความผิดพลาดจาก AI ผู้ใช้ ระบบ หรือผู้ขาย" },
+          { term: "Local validation", desc: "การทดสอบ AI กับข้อมูล ผู้ป่วย เครื่องมือ หรือบริบทที่ใกล้เคียงกับโรงพยาบาลที่จะใช้จริง เพื่อยืนยันว่า AI ทำงานได้จริงในบริบทนั้น" },
+          { term: "Medical AI", desc: "AI ที่ใช้ในงานสุขภาพหรือการแพทย์ เช่น คัดกรอง วินิจฉัย ทำนายความเสี่ยง จัดลำดับคิว หรือช่วยสรุปข้อมูลเวชระเบียน" },
+          { term: "MFA (Multi-Factor Authentication)", desc: "การยืนยันตัวตนหลายปัจจัย เช่น รหัสผ่านร่วมกับรหัส OTP หรือแอปยืนยันตัวตน" },
+          { term: "Model drift", desc: "ภาวะที่ประสิทธิภาพ AI เปลี่ยนไปเมื่อข้อมูลจริงเปลี่ยน เช่น โรคเปลี่ยน ประชากรเปลี่ยน เครื่องมือเปลี่ยน หรือแนวทางรักษาเปลี่ยน" },
+          { term: "Model lifecycle", desc: "วงจรชีวิตของโมเดลตั้งแต่พัฒนา ตรวจสอบ ติดตั้ง เฝ้าระวัง อัปเดต หยุดใช้ หรือเปลี่ยนเวอร์ชัน" },
+          { term: "NPV (Negative Predictive Value)", desc: "เมื่อ AI บอกว่าผลเป็นลบ โอกาสที่ผู้ป่วยไม่มีภาวะนั้นจริงมีมากน้อยเพียงใด" },
+          { term: "Override", desc: "ช่องทางให้ผู้ใช้ที่มีอำนาจสามารถไม่เห็นด้วย แก้ไข ยกเลิก หรือหยุดผลลัพธ์/คำแนะนำของ AI ได้อย่างปลอดภัย" },
+          { term: "PACS", desc: "ระบบจัดเก็บและแสดงภาพทางรังสีวิทยา เช่น X-ray, CT, MRI ที่ใช้ในงานรังสีวินิจฉัย" },
+          { term: "Patient communication", desc: "การสื่อสารกับผู้ป่วยด้วยภาษาที่เข้าใจง่ายเกี่ยวกับบทบาทของ AI ประโยชน์ ความเสี่ยง และสิทธิของผู้ป่วย" },
+          { term: "PDPA", desc: "พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคลของไทย กำหนดหลักการเก็บ ใช้ เปิดเผย และคุ้มครองข้อมูลส่วนบุคคล" },
+          { term: "Penetration test", desc: "การทดสอบเจาะระบบโดยผู้เชี่ยวชาญเพื่อหาช่องโหว่ก่อนใช้งานจริง" },
+          { term: "PII / PHI", desc: "ข้อมูลที่ระบุตัวบุคคลได้หรือข้อมูลสุขภาพที่เกี่ยวข้องกับบุคคล เช่น ชื่อ เลขบัตรประชาชน HN ภาพถ่าย หรือผลตรวจ" },
+          { term: "Pilot", desc: "การทดลองใช้ในวงจำกัด เช่น เฉพาะแผนก เฉพาะช่วงเวลา หรือเฉพาะกลุ่มผู้ป่วย เพื่อประเมินผลจริงก่อนขยายผล" },
+          { term: "Post-deployment monitoring", desc: "การติดตามผลหลังใช้งานจริง เช่น ความแม่นยำจริง อัตราแจ้งเตือนผิดพลาด ผลกระทบต่อผู้ป่วย และปัญหาที่เกิดใน workflow" },
+          { term: "PPV (Positive Predictive Value)", desc: "เมื่อ AI บอกว่าผลเป็นบวก โอกาสที่ผู้ป่วยมีภาวะนั้นจริงมีมากน้อยเพียงใด" },
+          { term: "Professional autonomy", desc: "อิสระและวิจารณญาณทางวิชาชีพของบุคลากรทางการแพทย์ ไม่ถูก AI หรือระบบบริหารบังคับให้ทำตามโดยไม่มีเหตุผล" },
+          { term: "PROGRESS-Plus", desc: "กรอบตรวจสอบปัจจัยความเหลื่อมล้ำ เช่น ถิ่นที่อยู่ เชื้อชาติ อาชีพ เพศ ศาสนา การศึกษา ฐานะทางเศรษฐกิจ ต้นทุนทางสังคม อายุ และความพิการ" },
+          { term: "Pseudonymization", desc: "การแทนข้อมูลระบุตัวบุคคลด้วยรหัสหรือตัวแทน โดยยังอาจย้อนกลับได้ถ้ามีกุญแจหรือข้อมูลเชื่อมโยง" },
+          { term: "RACI Matrix", desc: "ตารางแสดงบทบาทหน้าที่ (Responsible, Accountable, Consulted, Informed) เพื่อกำหนดชัดเจนว่าใครต้องทำหน้าที่อะไร" },
+          { term: "Robustness", desc: "ความแข็งแรงของระบบเมื่อเจอข้อมูลไม่สมบูรณ์ ภาพคุณภาพต่ำ สัญญาณรบกวน หรือสถานการณ์ที่ต่างจากชุดข้อมูลเดิม" },
+          { term: "ROI (Return on Investment)", desc: "ผลตอบแทนจากการลงทุน เทียบประโยชน์ที่ได้กับต้นทุนที่จ่าย เช่น ลดเวลารอ ลดค่าใช้จ่าย หรือเพิ่มประสิทธิภาพ" },
+          { term: "Rollback", desc: "กระบวนการย้อนกลับไปใช้โมเดลหรือระบบเวอร์ชันก่อนหน้าเมื่อพบความผิดปกติหรือความเสี่ยงจากเวอร์ชันใหม่" },
+          { term: "SaMD (Software as a Medical Device)", desc: "ซอฟต์แวร์ที่มีวัตถุประสงค์ทางการแพทย์และทำงานเป็นเครื่องมือแพทย์ได้ด้วยตัวเอง โดยไม่จำเป็นต้องเป็นส่วนหนึ่งของอุปกรณ์แพทย์" },
+          { term: "Sandbox", desc: "สภาพแวดล้อมจำลองหรือพื้นที่ทดลองที่แยกจากระบบบริการจริง ใช้ทดสอบ AI ก่อนเชื่อมต่อกับ workflow จริง" },
+          { term: "Sensitivity", desc: "ความสามารถของ AI ในการตรวจพบผู้ที่มีโรคจริง ค่ายิ่งสูงยิ่งลดโอกาสพลาดผู้ป่วยที่ควรถูกตรวจพบ" },
+          { term: "SLA (Service Level Agreement)", desc: "ข้อตกลงระดับการให้บริการ เช่น เวลาระบบพร้อมใช้งาน เวลาตอบสนอง และระยะเวลาซ่อมเมื่อระบบล่ม" },
+          { term: "Specificity", desc: "ความสามารถของ AI ในการระบุผู้ที่ไม่มีโรคได้ถูกต้อง ค่ายิ่งสูงยิ่งลดโอกาสแจ้งเตือนเกินจำเป็นในคนปกติ" },
+          { term: "SSO (Single Sign-On)", desc: "ระบบล็อกอินครั้งเดียวที่เชื่อมกับบัญชีผู้ใช้ขององค์กร ช่วยควบคุมสิทธิ์และยกเลิกสิทธิ์ได้เป็นระบบ" },
+          { term: "Subgroup analysis", desc: "การวิเคราะห์ผลลัพธ์แยกตามกลุ่มย่อย เช่น อายุ เพศ โรคร่วม ภูมิภาค ชนิดเครื่องมือ หรือกลุ่มเปราะบาง" },
+          { term: "Target population", desc: "กลุ่มผู้ป่วยหรือผู้รับบริการที่ AI จะนำไปใช้จริง เช่น ผู้ใหญ่ เด็ก ผู้สูงอายุ ผู้ป่วย OPD หรือผู้ป่วยฉุกเฉิน" },
+          { term: "TCO (Total Cost of Ownership)", desc: "ต้นทุนรวมตลอดอายุการใช้งาน รวมค่าซื้อ ค่าระบบ ค่าบำรุงรักษา ค่าสมัครสมาชิก ค่าอบรม และค่าเปลี่ยนระบบ" },
+          { term: "Thai FDA", desc: "สำนักงานคณะกรรมการอาหารและยา หน่วยงานกำกับดูแลเครื่องมือแพทย์ในประเทศไทย" },
+          { term: "Threshold", desc: "ค่าจุดตัดที่ใช้ตัดสินผลลัพธ์ของ AI เช่น ตั้งค่าความเสี่ยงเกิน 70% ให้แจ้งเตือน" },
+          { term: "Traceability", desc: "ความสามารถในการสืบย้อนผลลัพธ์ AI ไปยังข้อมูล เวอร์ชันโมเดล ผู้ใช้งาน เวลา และการตัดสินใจของมนุษย์" },
+          { term: "Transparency", desc: "ความโปร่งใสในการบอกผู้ใช้และผู้ป่วยว่าใช้ AI เพื่ออะไร ใช้ข้อมูลใด ใครรับผิดชอบ และข้อจำกัดคืออะไร" },
+          { term: "UAT (User Acceptance Testing)", desc: "การทดสอบโดยผู้ใช้จริงก่อนใช้งานเต็มรูปแบบ เพื่อดูว่าใช้งานได้ เข้าใจได้ และเหมาะกับงานจริงหรือไม่" },
+          { term: "Uptime", desc: "เวลาที่ระบบใช้งานได้ตามปกติ เช่น 99.5% ต่อเดือน" },
+          { term: "Use case", desc: "กรณีใช้งานเฉพาะที่ต้องการนำ AI ไปใช้ เช่น อ่านภาพ X-ray เพื่อคัดกรองวัณโรค ไม่ใช่การอธิบายความสามารถกว้างๆ" },
+          { term: "User acceptance", desc: "ระดับการยอมรับของผู้ใช้จริง เช่น แพทย์ พยาบาล ว่า AI มีประโยชน์ เข้าใจง่าย และไม่ขัดขวางงาน" },
+          { term: "USFDA", desc: "หน่วยงานกำกับดูแลอาหาร ยา และเครื่องมือแพทย์ของสหรัฐอเมริกา" },
+          { term: "Vendor lock-in", desc: "ภาวะที่โรงพยาบาลพึ่งพาผู้ขายรายเดียวมากเกินไป ย้ายข้อมูล เปลี่ยนระบบ หรือหยุดสัญญาได้ยาก" },
+          { term: "Vulnerability assessment", desc: "การประเมินหาช่องโหว่ด้านความปลอดภัยของระบบ ซอฟต์แวร์ เครือข่าย หรือการตั้งค่า" },
+          { term: "Workflow", desc: "ลำดับขั้นตอนการทำงานจริงของบุคลากร เช่น ใครส่งข้อมูลให้ AI ผล AI แสดงตรงไหน ใครเป็นผู้ยืนยันผล" },
+          { term: "Workflow integration", desc: "การเชื่อม AI เข้าไปในขั้นตอนงานเดิมอย่างราบรื่น ลดการกรอกข้อมูลซ้ำ ลดการสลับหน้าจอ และไม่เพิ่มภาระงาน" }
+        ];
+
         function SVGIcon({ name, className = "w-5 h-5" }) {
           if (name === 'activity') {
             return (
@@ -192,6 +289,22 @@
               </svg>
             );
           }
+          if (name === 'book') {
+            return (
+              <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            );
+          }
+          if (name === 'info') {
+            return (
+              <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            );
+          }
           return null;
         }
 
@@ -199,6 +312,7 @@
           const [activeTab, setActiveTab] = useState('info'); 
           const [isPrintMode, setIsPrintMode] = useState(false); 
           const [showResetModal, setShowResetModal] = useState(false);
+          const [searchTerm, setSearchTerm] = useState('');
           
           const [projectInfo, setProjectInfo] = useState({
             projectName: '', vendor: '', department: '', assessor: '', assessmentDate: '', riskLevel: 'ปานกลาง'
@@ -393,9 +507,64 @@
             { id: 'info', label: 'ข้อมูลทั่วไป' },
             ...rubrics.map(r => ({ id: r.id, label: r.id + ': ' + r.name })),
             { id: 'docs', label: 'รายการเอกสาร' },
+            { id: 'glossary', label: 'อภิธานศัพท์' },
             { id: 'summary', label: 'สรุปผล' },
             { id: 'settings', label: 'ตั้งค่า AI API' }
           ];
+
+          const renderGlossaryTab = () => {
+            const filteredTerms = glossaryData.filter(item => 
+              item.term.toLowerCase().includes(searchTerm.toLowerCase()) || 
+              item.desc.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            return (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <SVGIcon name="book" className="w-6 h-6 text-indigo-600" />
+                      อภิธานศัพท์และคำย่อ (Glossary)
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">นำเมาส์ไปวางเหนือคำศัพท์เพื่อดูคำอธิบาย (Hover over a term to view its description)</p>
+                  </div>
+                  <div className="relative w-full md:w-64">
+                    <input 
+                      type="text" 
+                      placeholder="ค้นหาคำศัพท์..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    />
+                    <div className="absolute left-3 top-2.5 opacity-50">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
+                  {filteredTerms.map((item, idx) => (
+                    <div key={idx} className="relative group bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-400 hover:shadow-md transition-all cursor-help flex justify-between items-center">
+                      <span className="font-bold text-gray-800 group-hover:text-indigo-700 transition-colors truncate pr-2">{item.term}</span>
+                      <SVGIcon name="info" className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 flex-shrink-0" />
+                      
+                      {/* Tooltip Hover Effect */}
+                      <div className="absolute z-[100] invisible opacity-0 group-hover:visible group-hover:opacity-100 bottom-full left-1/2 -translate-x-1/2 mb-3 w-[280px] p-4 bg-gray-900 text-white text-sm rounded-xl shadow-2xl transition-all duration-200 pointer-events-none">
+                        <p className="font-bold text-indigo-300 mb-1.5 border-b border-gray-700 pb-1.5">{item.term}</p>
+                        <p className="leading-relaxed font-light">{item.desc}</p>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredTerms.length === 0 && (
+                    <div className="col-span-full text-center py-12 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
+                      ไม่พบคำศัพท์ที่ค้นหา
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          };
 
           // ============================================================================
           // RENDER: PRINT MODE (แบบฟอร์มสกรีนขาว A4 คมชัดสูงสุด Vector-based)
@@ -790,12 +959,15 @@
                       
                       <div className="flex justify-between">
                         <button onClick={() => setActiveTab('E')} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">ย้อนกลับ</button>
-                        <button onClick={() => setActiveTab('summary')} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 cursor-pointer">ดูรายงานผล</button>
+                        <button onClick={() => setActiveTab('glossary')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer">ถัดไป</button>
                       </div>
                     </div>
                   )}
 
-                  {/* Tab 7: ผลสรุป */}
+                  {/* Tab 7: อภิธานศัพท์ */}
+                  {activeTab === 'glossary' && renderGlossaryTab()}
+
+                  {/* Tab 8: ผลสรุป */}
                   {activeTab === 'summary' && (
                     <div className="space-y-6 animate-fadeIn">
                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center">
