@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CURE Model v2 - Web Application</title>
+    <!-- Tailwind CSS v3 CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM v18 CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel for on-the-fly JSX compilation in browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- สร้าง Preset ของ Babel แบบกำหนดเอง เพื่อบังคับให้ใช้ Classic JSX Runtime และแก้ปัญหา react/jsx-runtime ถาวร -->
+    <script>
+        Babel.registerPreset('react-classic', {
+            presets: [
+                [Babel.availablePresets['react'], { runtime: 'classic' }]
+            ]
+        });
+    </script>
+
+    <!-- html2pdf.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Sarabun Font Standard -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+        .font-sarabun {
+            font-family: 'Sarabun', sans-serif !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div id="root"></div>
+
+    <!-- เรียกใช้ Preset ที่เราสร้างไว้ข้างต้นผ่าน data-presets -->
+    <script type="text/babel" data-presets="react-classic">
+        const { useState, useEffect, useMemo } = React;
+
+        const rubrics = [
+          {
+            id: 'C', name: 'Clinical Performance', title: 'ประสิทธิภาพและความน่าเชื่อถือทางคลินิก', icon: 'activity',
+            color: 'bg-blue-50 text-blue-700 border-blue-200', activeColor: 'bg-blue-600 text-white',
+            questions: [
+              { id: 'C1', title: 'ความแม่นยำและการตรวจสอบในบริบทจริง', desc: 'AI มีหลักฐานความแม่นยำที่ตรวจสอบได้ และได้รับการทดสอบกับข้อมูลหรือผู้ป่วย in-context ของไทยหรือไม่', isCritical: true, options: [{ score: 2, label: 'ดีมาก', detail: '• ตรวจสอบในสภาพแวดล้อมคลินิกจริง (Real-world)\n• ทดสอบใน Sandbox ที่ใกล้เคียงจริง\n• มีตัวชี้วัดประสิทธิภาพครบถ้วน\n• ข้อมูลเปรียบเทียบประชากรไทยชัดเจน' }, { score: 1, label: 'พอใช้', detail: '• มีหลักฐานจากงานวิจัยภายนอกที่น่าเชื่อถือ\n• ยังไม่มีการตรวจสอบในสภาพคลินิกจริงของ รพ.\n• ตัวชี้วัดบางส่วนยังไม่ครบตามต้องการ' }, { score: 0, label: 'เสี่ยงสูง (Critical Stop)', detail: '• ไม่มีหลักฐานความแม่นยำอย่างเป็นระบบ\n• ไม่ระบุชุดข้อมูลที่ใช้ทดสอบ' }] },
+              { id: 'C2', title: 'ความน่าเชื่อถือของผลลัพธ์และการจัดการความผิดพลาด', desc: 'ผลลัพธ์ของ AI มีความสม่ำเสมอ และมีการระบุ/จัดการ False positive หรือ False negative อย่างเหมาะสมหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• ประเมินความสม่ำเสมอใน Use case ชัดเจน\n• วิเคราะห์ FP/FN พร้อมผลกระทบทางคลินิก\n• มี Calibration curve/Threshold ชัดเจน\n• มี SOP รับมือเมื่อเกิดผลลัพธ์ที่ผิดพลาด' }, { score: 1, label: 'พอใช้', detail: '• มีข้อมูลความผิดพลาดหลักในภาพรวม\n• มี Threshold เบื้องต้นแต่ยังไม่ครอบคลุม\n• มีแนวทางรับมือแต่ยังไม่เป็น SOP ชัดเจน' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ไม่ทราบอัตราความผิดพลาด\n• ไม่มีการวิเคราะห์ FP/FN ในเชิงคลินิก\n• ไม่มีแผนรับมือเมื่อผลลัพธ์ผิดพลาด' }] },
+              { id: 'C3', title: 'ความครอบคลุมประชากรและสภาพทนทานของโมเดล', desc: 'AI ทำงานได้สม่ำเสมอในผู้ป่วยหลากหลายกลุ่ม อุปกรณ์ต่างกัน และเมื่อข้อมูลไม่สมบูรณ์หรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• ทดสอบในหลายกลุ่มประชากร\n• วิเคราะห์กลุ่มย่อย (Subgroup เช่น อายุ เพศ โรคร่วม)\n• ทดสอบกับอุปกรณ์หลากหลายแบรนด์\n• ประเมินผลเมื่อข้อมูลไม่สมบูรณ์' }, { score: 1, label: 'พอใช้', detail: '• ทดสอบกลุ่มผู้ป่วยหลักที่พบบ่อย\n• ขาดข้อมูลกลุ่มย่อยที่สำคัญ\n• ข้อมูลจำกัดเฉพาะแบรนด์อุปกรณ์บางประเภท' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ทดสอบกับกลุ่มข้อมูลจำกัด ไม่สะท้อนผู้ป่วยจริง\n• ไม่วิเคราะห์กลุ่มย่อย\n• ไม่ทราบผลกระทบเมื่อข้อมูลไม่สมบูรณ์' }] },
+              { id: 'C4', title: 'วงจรชีวิตโมเดลและการติดตามประสิทธิภาพหลังใช้งาน', desc: 'มีการเฝ้าระวัง Model drift และมีแนวทาง Update/Rollback ตลอดจนมาตรการระงับใช้งานหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• มี Model lifecycle plan ชัดเจนก่อนและหลังใช้\n• ติดตาม Model drift ต่อเนื่อง\n• มีขั้นตอน Update และ Rollback ชัดเจน\n• กำหนดผู้รับผิดชอบและรอบทบทวนชัดเจน' }, { score: 1, label: 'พอใช้', detail: '• ติดตามประสิทธิภาพเป็นรอบ (6-12 เดือน)\n• ไม่มีระบบ Dashboard แบบอัตโนมัติ\n• มีแนวทาง Update แต่ Rollback ไม่ชัดเจน' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ไม่มีแผนติดตามประสิทธิภาพหลังใช้\n• ไม่มีเกณฑ์ตรวจจับ Model drift\n• ไม่มีขั้นตอน Update/Rollback' }] }
+            ]
+          },
+          {
+            id: 'U', name: 'Usability & Value', title: 'ความพร้อมในการนำไปใช้และคุณค่าที่ได้รับ', icon: 'users',
+            color: 'bg-emerald-50 text-emerald-700 border-emerald-200', activeColor: 'bg-emerald-600 text-white',
+            questions: [
+              { id: 'U1', title: 'การผสานกับขั้นตอนการทำงานและการยอมรับ', desc: 'AI เข้ากับกระบวนการทำงานจริงโดยไม่เพิ่มภาระ และมีแผน Change management หรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• ผสาน Workflow เดิมได้อย่างราบรื่น\n• ลดภาระงานหรือลดเวลาลงอย่างชัดเจน\n• มีอบรมและกำหนด Super user ดูแลทีม\n• มีแผนจัดการการเปลี่ยนแปลงครบถ้วน' }, { score: 1, label: 'พอใช้', detail: '• ใช้ร่วมกับ Workflow เดิมได้แต่มีขั้นตอนเพิ่มขึ้นบ้าง\n• ผู้ใช้ยอมรับระดับหนึ่งแต่ยังไม่ทั่วถึง' }, { score: 0, label: 'เสี่ยงสูง', detail: '• เพิ่มภาระงานซับซ้อนขึ้นอย่างชัดเจน\n• ผู้ใช้หลักปฏิเสธการใช้งาน\n• รบกวนขั้นตอนดูแลผู้ป่วยเดิม' }] },
+              { id: 'U2', title: 'ความสามารถในการอธิบายผลและการตีความ', desc: 'ผู้ใช้สามารถเข้าใจเหตุผล ที่มา และข้อจำกัดของผลลัพธ์ AI เพียงพอต่อการตัดสินใจหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• แสดงเหตุผลประกอบคลินิกชัดเจน (Heatmap ฯลฯ)\n• ระบุข้อจำกัดและข้อควรระวังชัดเจน\n• มีคู่มือการตีความผลลัพธ์ที่ถูกต้อง' }, { score: 1, label: 'พอใช้', detail: '• แสดงคะแนนความมั่นใจ (Confidence score) พื้นฐาน\n• อธิบายที่มาได้จำกัด\n• คู่มือการประเมินยังต้องปรับปรุง' }, { score: 0, label: 'เสี่ยงสูง', detail: '• เป็นระบบกล่องดำ (Black box) ตรวจสอบไม่ได้\n• ไม่แจ้งข้อจำกัดหรือกรณีอันตราย' }] },
+              { id: 'U3', title: 'ความพร้อมด้าน IT สมรรถนะ และการเชื่อมต่อ', desc: 'โครงสร้าง IT รองรับความเร็ว เสถียรภาพ การเชื่อมต่อ HIS/PACS และขยายระบบได้หรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• รองรับมาตรฐานสากล (HL7, FHIR, DICOM)\n• มี SLA ประกัน Uptime ระบบชัดเจน\n• มีแผน Backup/DR ครบถ้วน\n• เชื่อม HIS/PACS ได้อย่างปลอดภัย' }, { score: 1, label: 'พอใช้', detail: '• เชื่อมระบบหลักได้บางส่วน\n• สมรรถนะพอทดลองใช้แต่ต้องการการทดสอบเพิ่มเพื่อขยายผล' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ต้องลงทุนโครงสร้างพื้นฐานใหม่มหาศาล\n• ระบบช้าและล่มบ่อย\n• ไม่มีแผนสำรองข้อมูลเพื่อความปลอดภัย' }] },
+              { id: 'U4', title: 'คุณค่า ความคุ้มทุน และความยั่งยืน', desc: 'AI สร้างคุณค่าที่วัดได้ต่อผู้ป่วย/บุคลากร และคุ้มทุนในระยะยาวหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• มี KPI วัดได้ชัดเจน (ลดเวลานอน/ลดผลลัพธ์ผิดพลาด)\n• ประเมินต้นทุนรวม (TCO) ครอบคลุม\n• สอดคล้องยุทธศาสตร์ของโรงพยาบาล\n• มีแผนงบประมาณความยั่งยืนระยะยาว' }, { score: 1, label: 'พอใช้', detail: '• คาดว่ามีประโยชน์แต่ยังไม่มีตัวเลขยืนยัน\n• ต้องนำร่อง (Pilot) เพื่อเก็บข้อมูลที่แท้จริง\n• ประเมินต้นทุนยังไม่คลุมระยะยาว' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ค่าใช้จ่ายสูงกว่าประโยชน์เชิงระบบชัดเจน\n• ไม่มีแผนงบประมาณรองรับหลังช่วงทดลองใช้' }] }
+            ]
+          },
+          {
+            id: 'R', name: 'Regulation & Risk', title: 'กฎระเบียบ ความเสี่ยง และธรรมาภิบาล', icon: 'file-signature',
+            color: 'bg-purple-50 text-purple-700 border-purple-200', activeColor: 'bg-purple-600 text-white',
+            questions: [
+              { id: 'R1', title: 'ความสอดคล้องกับกฎระเบียบและกฎหมาย', desc: 'AI มีการขึ้นทะเบียน อนุมัติ และใช้ข้อมูลถูกกฎหมาย PDPA/เครื่องมือแพทย์ หรือไม่', isCritical: true, options: [{ score: 2, label: 'ดีมาก', detail: '• มีสถานะ อย./SaMD ประเทศไทยชัดเจน\n• ฐานอ้างอิง PDPA ถูกต้องและปลอดภัย\n• ระบุเงื่อนไขและวัตถุประสงค์ชัดเจน' }, { score: 1, label: 'พอใช้', detail: '• มีเอกสารกฎหมายบางส่วน\n• อยู่ระหว่างขออนุมัติเพิ่มเติมเพื่อใช้งานจริง' }, { score: 0, label: 'เสี่ยงสูง (Critical Stop)', detail: '• ไม่มีหลักฐานการรับรองทางกฎหมาย\n• เสี่ยงผิดกฎหมายคุ้มครองข้อมูลส่วนบุคคล (PDPA)' }] },
+              { id: 'R2', title: 'สิทธิข้อมูล ความเป็นส่วนตัว และความสมบูรณ์', desc: 'มีการกำหนดสิทธิ์ข้อมูล DPA, DPIA และการทำ Pseudonymization ชัดเจนหรือไม่', isCritical: true, options: [{ score: 2, label: 'ดีมาก', detail: '• มีสัญญาประมวลผลข้อมูล (DPA) ชัดเจน\n• ทำรายงานประเมินผลกระทบ (DPIA) ครบถ้วน\n• มีมาตรการทำข้อมูลนิรนามก่อนจัดส่ง' }, { score: 1, label: 'พอใช้', detail: '• มีมาตรการคุ้มครองพื้นฐาน\n• นโยบายลบข้อมูลหรือคืนสิทธิ์ยังไม่ครบถ้วน' }, { score: 0, label: 'เสี่ยงสูง (Critical Stop)', detail: '• สัญญาให้สิทธิ์ผู้ขายนำข้อมูลผู้ป่วยไปใช้อย่างหละหลวม\n• ไม่มีมาตรการป้องกันข้อมูลรั่วไหล' }] },
+              { id: 'R3', title: 'ความมั่นคงปลอดภัยไซเบอร์และแผนตอบสนอง', desc: 'มีมาตรการป้องกัน (เข้ารหัส/MFA), ตรวจจับ (Pen Test) และรับมือการโจมตี (Incident Response) หรือไม่', isCritical: true, options: [{ score: 2, label: 'ดีมาก', detail: '• เข้ารหัสข้อมูลครบถ้วน (At rest & In transit)\n• มี Access control / MFA / Audit log ตรวจสอบได้\n• มีรายงาน Pen test ล่าสุดไม่เกิน 12 เดือน\n• มี Incident response plan พร้อมกู้คืน' }, { score: 1, label: 'พอใช้', detail: '• มีมาตรการพื้นฐาน\n• รายงานทดสอบช่องโหว่ไม่เป็นปัจจุบัน\n• มีแผนรับมือแต่ยังไม่เคยผ่านการทดสอบจริง' }, { score: 0, label: 'เสี่ยงสูง (Critical Stop)', detail: '• ไม่เข้ารหัสข้อมูลสุขภาพ\n• ไม่มีระบบควบคุมการเข้าถึงหรือบันทึก Audit log' }] },
+              { id: 'R4', title: 'การตรวจสอบย้อนหลัง ความรับผิดชอบ และธรรมาภิบาล', desc: 'ตรวจสอบได้ว่าใครตัดสินใจ และมี RACI ระบุว่าใครรับผิดชอบเมื่อเกิดข้อผิดพลาดหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• มี Audit trail บันทึกกิจกรรมครบถ้วน\n• มี RACI matrix กำหนดความรับผิดชอบชัดเจน\n• ผ่านคณะกรรมการ AI Governance\n• มี Exit strategy หากยกเลิกสัญญา' }, { score: 1, label: 'พอใช้', detail: '• มีบันทึกการใช้งานพื้นฐาน\n• ขอบเขตรับผิดชอบเชิงกฎหมายยังต้องปรับปรุง\n• ยังไม่ผ่านคณะกรรมการกลาง' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ไม่สามารถตรวจสอบการตัดสินใจย้อนหลังได้\n• ไม่มีมาตรการรองรับความเสียหายเชิงคลินิก' }] }
+            ]
+          },
+          {
+            id: 'E', name: 'Ethics, Equity & Trust', title: 'จริยธรรม ความเสมอภาค และความน่าเชื่อถือ', icon: 'scale',
+            color: 'bg-orange-50 text-orange-700 border-orange-200', activeColor: 'bg-orange-600 text-white',
+            questions: [
+              { id: 'E1', title: 'ความเป็นธรรมและการลดอคติในการประมวลผล', desc: 'AI มีการตรวจสอบ Bias และลดอคติระหว่างกลุ่มประชากรหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• มีรายงาน Bias audit และประเมินกลุ่มย่อยสม่ำเสมอ\n• มีแผนเฝ้าระวังความเป็นธรรมระยะยาวในการรัน\n• มีเกณฑ์ระงับใช้เมื่อพบข้อบ่งชี้ความเหลื่อมล้ำ' }, { score: 1, label: 'พอใช้', detail: '• ประเมินอคติประชากรบางส่วน\n• ขาดเครื่องมือติดตามและแผนแก้ไขระยะยาว' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ไม่เคยมีการวิเคราะห์ความลำเอียง\n• ให้ความแม่นยำต่ำเฉพาะกลุ่มประชากรที่เปราะบาง' }] },
+              { id: 'E2', title: 'ความเสมอภาคในการเข้าถึงบริการ', desc: 'AI ลดความเหลื่อมล้ำ โดยเฉพาะกลุ่มเปราะบางหรือไม่มีเทคโนโลยีหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• ออกแบบสอดคล้องกับความต้องการของกลุ่มเปราะบาง\n• มีช่องทางออฟไลน์รองรับกรณีไม่มีอินเทอร์เน็ต\n• ตรวจประเมินผลกระทบเป็นประจำ' }, { score: 1, label: 'พอใช้', detail: '• มีแผนความเสมอภาคขั้นพื้นฐาน\n• ยังเน้นให้บริการเฉพาะกลุ่มผู้มีเทคโนโลยีพร้อม' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ก่อให้เกิดอุปสรรคการเข้าถึงบริการกับกลุ่มเปราะบาง\n• เพิ่มภาระทางการเงินให้ผู้ป่วยโดยใช่เหตุ' }] },
+              { id: 'E3', title: 'การกำกับดูแลโดยมนุษย์และอิสระทางวิชาชีพ', desc: 'AI เป็นเพียงผู้ช่วย มี Human-in-the-loop และมีกลไกอุทธรณ์ผล (Override) หรือไม่', isCritical: true, options: [{ score: 2, label: 'ดีมาก', detail: '• มนุษย์ (แพทย์) มีอำนาจตัดสินใจขั้นสุดท้าย 100%\n• มีกลไก Override และเปลี่ยนคำวินิจฉัยอย่างปลอดภัย\n• อบรมเรื่อง Automation bias ให้พนักงานแล้ว' }, { score: 1, label: 'พอใช้', detail: '• มีการอนุมัติก่อนส่งผล\n• ขั้นตอนและช่องทาง Override ยังยุ่งยากหรือซับซ้อน' }, { score: 0, label: 'เสี่ยงสูง (Critical Stop)', detail: '• AI ทำงานวินิจฉัยและส่งผลอัตโนมัติปราศจากแพทย์ทบทวน\n• ไม่มีปุ่ม Override หรือกระบวนการโต้แย้ง' }] },
+              { id: 'E4', title: 'ความโปร่งใส การยินยอม และการสื่อสาร', desc: 'ผู้ป่วยทราบว่ามีการใช้ AI มีการขอ Consent และแจ้งสิทธิปฏิเสธหรือไม่', options: [{ score: 2, label: 'ดีมาก', detail: '• ชี้แจงผู้ป่วยด้วยภาษาที่เข้าใจง่ายและโปร่งใส\n• มีระบบ Informed Consent ที่เหมาะสม\n• เปิดโอกาสให้ผู้ป่วยปฏิเสธการใช้ระบบได้\n• มีช่องทางสอบถามและรับข้อร้องเรียนครบถ้วน' }, { score: 1, label: 'พอใช้', detail: '• แจ้งประกาศทั่วไปในองค์กรว่ามีการใช้ AI\n• นโยบายสิทธิความยินยอมยังไม่สมบูรณ์' }, { score: 0, label: 'เสี่ยงสูง', detail: '• ปกปิดการใช้ปัญญาประดิษฐ์จากผู้ป่วย\n• ไม่มีนโยบายสิทธิและการปฏิเสธที่เหมาะสม' }] }
+            ]
+          }
+        ];
+
+        const documentChecklist = [
+          {
+            category: 'มิติที่ 1: Clinical Performance (C)',
+            items: [
+              { id: 'doc_c1_1', text: 'รายงาน Validation พร้อม Metrics (Sensitivity, Specificity, AUC, PPV, NPV)', type: 'mandatory', ref: 'C1' },
+              { id: 'doc_c1_2', text: 'ผลการทดสอบ Sandbox/Pilot ในบริบทโรงพยาบาลหรือประชากรไทย', type: 'standard' },
+              { id: 'doc_c1_3', text: 'เอกสารระบุ Dataset ที่ใช้ทดสอบ (ขนาด, แหล่งที่มา, ช่วงเวลา)', type: 'standard' },
+              { id: 'doc_c2_1', text: 'Calibration curve / Threshold analysis', type: 'standard' },
+              { id: 'doc_c2_2', text: 'False positive/negative analysis แยกตาม Clinical scenario', type: 'standard' },
+              { id: 'doc_c2_3', text: 'SOP เมื่อพบผลผิดพลาดที่กระทบผู้ป่วย', type: 'standard' },
+              { id: 'doc_c3_1', text: 'Subgroup analysis แยกตาม อายุ เพศ โรคร่วม กลุ่มชาติพันธุ์', type: 'standard' },
+              { id: 'doc_c3_2', text: 'ผลทดสอบ Robustness เมื่อข้อมูลไม่สมบูรณ์ (Missing data scenario)', type: 'standard' },
+              { id: 'doc_c3_3', text: 'รายชื่ออุปกรณ์/เครื่องมือที่รับประกันความเข้ากันได้', type: 'standard' },
+              { id: 'doc_c4_1', text: 'Model lifecycle plan พร้อม Monitoring KPI และ Drift detection threshold', type: 'standard' },
+              { id: 'doc_c4_2', text: 'Update/rollback SOP และผู้รับผิดชอบที่ชัดเจน', type: 'standard' },
+              { id: 'doc_c4_3', text: 'ตัวอย่าง Performance dashboard หรือ Monitoring report', type: 'standard' },
+            ]
+          },
+          {
+            category: 'มิติที่ 2: Usability & Value (U)',
+            items: [
+              { id: 'doc_u1_1', text: 'Workflow map แสดงจุดเชื่อมต่อระหว่าง AI กับกระบวนการปัจจุบัน', type: 'standard' },
+              { id: 'doc_u1_2', text: 'User Acceptance Testing Report / ผลการทดสอบกับผู้ใช้จริงในบริบทโรงพยาบาล', type: 'standard' },
+              { id: 'doc_u1_3', text: 'User training plan และแผน Change management', type: 'standard' },
+              { id: 'doc_u1_4', text: 'รายชื่อ Super user และช่องทาง Feedback loop', type: 'standard' },
+              { id: 'doc_u2_1', text: 'ตัวอย่างหน้าจอแสดงผล AI พร้อม Explainability features (Heatmap, Key features, Confidence)', type: 'standard' },
+              { id: 'doc_u2_2', text: 'เอกสาร Explainability methodology (เช่น SHAP, LIME, Grad-CAM)', type: 'standard' },
+              { id: 'doc_u2_3', text: 'คู่มือผู้ใช้ที่อธิบายวิธีตีความผลลัพธ์และข้อจำกัด', type: 'standard' },
+              { id: 'doc_u3_1', text: 'IT architecture diagram และ API/Interface specification', type: 'standard' },
+              { id: 'doc_u3_2', text: 'HL7 FHIR / DICOM / HL7 v2 mapping document (แล้วแต่ Use case)', type: 'standard' },
+              { id: 'doc_u3_3', text: 'Latency test / Capacity plan และ Uptime SLA', type: 'standard' },
+              { id: 'doc_u3_4', text: 'Backup/Disaster Recovery (DR) plan', type: 'standard' },
+              { id: 'doc_u4_1', text: 'Business case พร้อม Total Cost of Ownership (TCO) และ Budget impact', type: 'standard' },
+              { id: 'doc_u4_2', text: 'Cost-benefit analysis หรือ CEA (Cost-Effectiveness Analysis)', type: 'standard' },
+              { id: 'doc_u4_3', text: 'ตัวชี้วัดผลลัพธ์ก่อน-หลัง (KPI) และ Procurement model (SaaS/License/ซื้อขาด)', type: 'standard' },
+            ]
+          },
+          {
+            category: 'มิติที่ 3: Regulation, Risk & Governance (R)',
+            items: [
+              { id: 'doc_r1_1', text: 'หนังสือรับรองสถานะ SaMD / ทะเบียนเครื่องมือแพทย์จาก อย. ไทย หรือเทียบเท่า', type: 'mandatory', ref: 'R1' },
+              { id: 'doc_r1_2', text: 'เอกสารฐานทางกฎหมาย PDPA (Lawful basis) สำหรับการใช้ข้อมูลสุขภาพ', type: 'mandatory', ref: 'R1' },
+              { id: 'doc_r1_3', text: 'IRB/EC approval (กรณีใช้เป็นโครงการวิจัย)', type: 'standard' },
+              { id: 'doc_r1_4', text: 'Legal review สรุปขอบเขตและเงื่อนไขการใช้งาน', type: 'standard' },
+              { id: 'doc_r2_1', text: 'Data Processing Agreement (DPA) ระบุ Data Controller/Processor ชัดเจน', type: 'mandatory', ref: 'R2' },
+              { id: 'doc_r2_2', text: 'Data Privacy Impact Assessment (DPIA)', type: 'mandatory', ref: 'R2' },
+              { id: 'doc_r2_3', text: 'Data flow diagram และ Data dictionary', type: 'standard' },
+              { id: 'doc_r2_4', text: 'De-identification / Pseudonymization protocol', type: 'standard' },
+              { id: 'doc_r2_5', text: 'Data retention policy และขั้นตอนรองรับสิทธิ์ผู้ป่วย (เข้าถึง/แก้ไข/ลบ)', type: 'standard' },
+              { id: 'doc_r3_1', text: 'Security architecture document พร้อม Encryption spec (At rest & In transit)', type: 'mandatory', ref: 'R3' },
+              { id: 'doc_r3_2', text: 'Vulnerability / Penetration test report (ล่าสุด ไม่เกิน 12 เดือน)', type: 'mandatory', ref: 'R3' },
+              { id: 'doc_r3_3', text: 'Incident response plan พร้อม SLA แจ้งเหตุ', type: 'mandatory', ref: 'R3' },
+              { id: 'doc_r3_4', text: 'Access control policy และ Audit log specification', type: 'standard' },
+              { id: 'doc_r3_5', text: 'Backup/DR plan และผลการซ้อมแผน (Drill record)', type: 'standard' },
+              { id: 'doc_r4_1', text: 'Audit trail specification (บันทึกอะไร, เก็บนานเท่าไหร่, ใครเข้าถึงได้)', type: 'standard' },
+              { id: 'doc_r4_2', text: 'RACI matrix ระบุความรับผิดชอบของแพทย์/โรงพยาบาล/ผู้ขาย', type: 'standard' },
+              { id: 'doc_r4_3', text: 'AI governance policy / Committee charter ระดับโรงพยาบาล', type: 'standard' },
+              { id: 'doc_r4_4', text: 'Vendor exit strategy / Contract termination plan', type: 'standard' },
+            ]
+          },
+          {
+            category: 'มิติที่ 4: Ethics, Equity & Trust (E)',
+            items: [
+              { id: 'doc_e1_1', text: 'Bias audit report พร้อม Subgroup performance analysis', type: 'standard' },
+              { id: 'doc_e1_2', text: 'รายละเอียด Training dataset (สัดส่วนกลุ่มประชากร, ช่วงเวลา, แหล่งที่มา)', type: 'standard' },
+              { id: 'doc_e1_3', text: 'Bias monitoring plan และเกณฑ์กระตุ้นให้ทบทวน (Trigger threshold)', type: 'standard' },
+              { id: 'doc_e2_1', text: 'Equity impact assessment — วิเคราะห์ผลกระทบต่อกลุ่มเปราะบางและพื้นที่ห่างไกล', type: 'standard' },
+              { id: 'doc_e2_2', text: 'ทางเลือกการใช้งานสำหรับผู้ที่ไม่มีสมาร์ทโฟน/อินเทอร์เน็ต (ถ้ามี)', type: 'standard' },
+              { id: 'doc_e2_3', text: 'แผนติดตาม equity outcomes หลังการใช้งาน', type: 'standard' },
+              { id: 'doc_e3_1', text: 'เอกสารกำหนด Human-in-the-loop policy ระบุว่าแพทย์/บุคลากรตัดสินใจขั้นสุดท้ายเสมอ', type: 'mandatory', ref: 'E3' },
+              { id: 'doc_e3_2', text: 'Override/second review procedure และการบันทึก', type: 'standard' },
+              { id: 'doc_e3_3', text: 'Training curriculum เรื่อง Automation bias สำหรับผู้ใช้', type: 'standard' },
+              { id: 'doc_e4_1', text: 'Patient-facing notice / consent form สำหรับการใช้ AI (ภาษาที่เข้าใจง่าย)', type: 'standard' },
+              { id: 'doc_e4_2', text: 'ขั้นตอน Opt-out และแนวทางรองรับผู้ป่วยที่ปฏิเสธ', type: 'standard' },
+              { id: 'doc_e4_3', text: 'ช่องทางร้องเรียน/สอบถามสำหรับผู้ป่วยและบุคลากร', type: 'standard' },
+            ]
+          }
+        ];
+
+        function SVGIcon({ name, className = "w-5 h-5" }) {
+          if (name === 'activity') {
+            return (
+              <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            );
+          }
+          if (name === 'users') {
+            return (
+              <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            );
+          }
+          if (name === 'file-signature') {
+            return (
+              <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            );
+          }
+          if (name === 'scale') {
+            return (
+              <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7h12m0 0l3 1m-3-1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9h-1.2C16.3 5.3 14.8 4 13 4H11c-1.8 0-3.3 1.3-3.8 3H6" />
+              </svg>
+            );
+          }
+          return null;
+        }
+
+        function CureModelApp() {
+          const [activeTab, setActiveTab] = useState('info'); 
+          const [isPrintMode, setIsPrintMode] = useState(false); 
+          
+          const [projectInfo, setProjectInfo] = useState({
+            projectName: '', vendor: '', department: '', assessor: '', assessmentDate: '', riskLevel: 'ปานกลาง'
+          });
+          const [scores, setScores] = useState({});
+          const [docs, setDocs] = useState({});
+
+          const [aiSummary, setAiSummary] = useState('');
+          const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+          const [aiEmailDraft, setAiEmailDraft] = useState('');
+          const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+          const [geminiKey, setGeminiKey] = useState('');
+
+          const handleScoreChange = (qId, score) => setScores(prev => ({ ...prev, [qId]: score }));
+          const handleDocChange = (docId) => setDocs(prev => ({ ...prev, [docId]: !prev[docId] }));
+          const handleInfoChange = (e) => setProjectInfo(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+          const generateOfflineSummary = () => {
+            const { totalScore, statusText, criticalFails, missingMandatoryDocs } = evaluationResult;
+            let text = `บทสรุปผู้บริหาร: โครงการประเมินความเหมาะสมของการนำระบบปัญญาประดิษฐ์ทางการแพทย์มาใช้ในสถานพยาบาล\n\n`;
+            text += `จากการตรวจประเมินเทคโนโลยีปัญญาประดิษฐ์ "${projectInfo.projectName || 'ระบบจำลอง'} " พัฒนาโดย "${projectInfo.vendor || 'ผู้ผลิต/คู่ค้า'}" สำหรับติดตั้งใช้งาน ณ แผนก "${projectInfo.department || 'ไม่ระบุหน่วยงาน'}" ภายใต้เกณฑ์มาตรฐานสากล CURE Model v2 พบว่าได้รับคะแนนสุทธิ ${totalScore} คะแนน จากคะแนนเต็ม 32 คะแนน\n\n`;
+            
+            if (criticalFails.length > 0 || missingMandatoryDocs.length > 0) {
+              text += `ความเห็นและข้อพิจารณาวิกฤต (Critical Alerts):\nโครงการนี้ "ไม่ผ่านเกณฑ์การพิจารณาด้านความปลอดภัยขั้นต่ำ" เนื่องจากพบบันทึกความบกพร่องทางกฎหมาย เทคโนโลยี หรือความเสี่ยงต่อผู้ป่วย ดังนี้:\n`;
+              if (criticalFails.length > 0) {
+                text += `- มีข้อประเมินที่ระดับวิกฤต (Critical Questions) ได้รับ 0 คะแนน ในประเด็น: ${criticalFails.join(', ')}\n`;
+              }
+              if (missingMandatoryDocs.length > 0) {
+                text += `- ขาดเอกสารรับรองภาคบังคับ: ${missingMandatoryDocs.join(', ')}\n`;
+              }
+              text += `\nมติที่ประชุม:\nมีมติส่งคืนแบบคำขอเพื่อส่งเรื่องกลับไปยังผู้ขาย ให้ทำการจัดส่งเอกสารและปรับปรุงระบบการทำงานในประเด็นวิกฤตข้างต้นให้สมบูรณ์ ก่อนนำกลับมาเสนอต่อคณะอนุกรรมการเพื่อพิจารณาใหม่อีกครั้ง`;
+            } else {
+              if (totalScore >= 26) {
+                text += `มติที่ประชุมและแนวทางดำเนินการ (Ready to Deploy):\nโครงการผ่านเกณฑ์การประเมินในระดับดีเยี่ยม ไม่มีเงื่อนไขขัดข้องด้านกฎหมายและความปลอดภัย ไซเบอร์ อนุมัติเห็นควรให้นำระบบจัดซื้อจัดจ้างตามขั้นตอนและเปิดเชื่อมเข้าสู่เครือข่าย HIS ของโรงพยาบาลได้โดยทันที โดยให้มีแผนการตรวจสอบคุณภาพแบบจำลอง (Model drift) ตามกำหนดการทุกๆ 6 เดือน`;
+              } else if (totalScore >= 17) {
+                text += `มติที่ประชุมและแนวทางดำเนินการ (Sandbox Pilot):\nโครงการได้รับการประเมินความพร้อมในระดับปานกลาง มีคุณค่าและคุณประโยชน์ทางคลินิกแต่อาจต้องปรับปรุงคู่มือการอบรมเพิ่มเติม คณะกรรมการมีมติเห็นสมควร "อนุมัติให้นำร่องทดลองใช้งานจำกัดวง (Sandbox)" เป็นระยะเวลา 3-6 เดือน โดยติดตั้งระบบแจ้งเตือนและวัดตัวชี้วัดผลลัพธ์ (KPI) อย่างเข้มงวดก่อนพิจารณาอนุมัติใช้จริงถัดไป`;
+              } else {
+                text += `มติที่ประชุมและแนวทางดำเนินการ (Rejected):\nโครงการได้คะแนนรวมต่ำกว่าเกณฑ์ขั้นต่ำ (น้อยกว่า 17 คะแนน) ขาดความพร้อมของคู่มือและการออกแบบเวิร์กโฟลว์ใช้งาน มีมติ "ไม่อนุมัติโครงการ" เพื่อความปลอดภัยของข้อมูลสุขภาพและวิชาชีพ`;
+              }
+            }
+            return text;
+          };
+
+          const generateOfflineEmail = () => {
+            const missingDocs = [];
+            documentChecklist.forEach(cat => cat.items.forEach(item => { if (!docs[item.id]) missingDocs.push(item.text); }));
+            
+            let text = `เรื่อง: ขอความอนุเคราะห์จัดส่งเอกสารรับรองมาตรฐานเพิ่มเติมประกอบการพิจารณาประเมินเทคโนโลยี AI\n`;
+            text += `เรียน: ฝ่ายประสานงานจัดซื้อ บริษัท ${projectInfo.vendor || '(ชื่อบริษัทคู่ค้า)'}\n\n`;
+            text += `ตามที่โรงพยาบาลได้ดำเนินการพิจารณาประเมินความพร้อมเชิงเทคนิคและคลินิก สำหรับโครงการปัญญาประดิษฐ์ทางการแพทย์ "${projectInfo.projectName || 'ระบบจำลอง'}" ตามมาตรฐาน CURE Model v2 ของโรงพยาบาลนั้น\n\n`;
+            text += `คณะทำงานฯ ตรวจสอบพบบันทึกความบกพร่องของเอกสารแนบสำคัญ ใคร่ขอความร่วมมือจากทางคู่ค้าจัดส่งเอกสารรับรองความถูกต้องเพิ่มเติมดังรายการดังต่อไปนี้:\n\n`;
+            
+            missingDocs.slice(0, 8).forEach((d, idx) => {
+              text += `${idx + 1}. ${d}\n`;
+            });
+            if (missingDocs.length > 8) {
+              text += `...และเอกสารข้อกำหนดความพร้อมด้าน IT, ความปลอดภัยไซเบอร์ อื่นๆ รวมทั้งสิ้น ${missingDocs.length} ฉบับ\n`;
+            }
+            
+            text += `\nจึงเรียนมาเพื่อโปรดพิจารณาและดำเนินการจัดส่งเอกสารดังกล่าวกลับมายังคณะอนุกรรมการฯ เพื่อสแกนนำเสนอผู้อำนวยการอนุมัติสัญญาในขั้นตอนถัดไป\n\n`;
+            text += `ขอแสดงความนับถือ\nคณะทำงานประเมินความปลอดภัยปัญญาประดิษฐ์ทางการแพทย์\nฝ่ายสารสนเทศและเทคโนโลยีทางการแพทย์`;
+            return text;
+          };
+
+          const callGemini = async (prompt) => {
+            const key = geminiKey.trim();
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            
+            for (let i = 0; i < 6; i++) {
+              try {
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const data = await res.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              } catch (err) {
+                if (i === 5) throw err;
+                await new Promise(resolve => setTimeout(resolve, delays[i]));
+              }
+            }
+          };
+
+          const handleGenerateEmail = async () => {
+            setIsGeneratingEmail(true);
+            if (!geminiKey.trim()) {
+              setTimeout(() => {
+                setAiEmailDraft(generateOfflineEmail());
+                setIsGeneratingEmail(false);
+              }, 600);
+              return;
+            }
+
+            const missingDocs = [];
+            documentChecklist.forEach(cat => cat.items.forEach(item => { if (!docs[item.id]) missingDocs.push(item.text); }));
+            if (missingDocs.length === 0) { setAiEmailDraft("เอกสารแนบครบถ้วนดีแล้ว ไม่จำเป็นต้องทำแบบคำร้องขอเอกสารเพิ่มเติมครับ"); setIsGeneratingEmail(false); return; }
+
+            const prompt = `คุณคือเจ้าหน้าที่ประเมินโครงการ AI ของโรงพยาบาล ช่วยร่างอีเมลภาษาไทยแบบเป็นทางการและสุภาพ เพื่อขอเอกสารเพิ่มเติมจากบริษัทผู้พัฒนา/ผู้ขาย (${projectInfo.vendor || 'ระบุชื่อบริษัท'}) สำหรับโครงการ "${projectInfo.projectName || 'ไม่ระบุชื่อโครงการ'}" โดยรายการเอกสารที่ขาดและจำเป็นต้องใช้ประกอบการพิจารณามีดังนี้:\n\n${missingDocs.map(d => "- " + d).join('\n')}\n\nขอให้เขียนเป็นอีเมลที่พร้อมคัดลอกไปส่งได้เลย มีคำขึ้นต้นและคำลงท้ายที่เหมาะสม`;
+            try {
+              const result = await callGemini(prompt);
+              setAiEmailDraft(result || generateOfflineEmail());
+            } catch (error) { 
+              setAiEmailDraft(generateOfflineEmail()); 
+            }
+            setIsGeneratingEmail(false);
+          };
+
+          const handleGenerateSummary = async () => {
+            setIsGeneratingSummary(true);
+            if (!geminiKey.trim()) {
+              setTimeout(() => {
+                setAiSummary(generateOfflineSummary());
+                setIsGeneratingSummary(false);
+              }, 700);
+              return;
+            }
+
+            const { totalScore, statusText, criticalFails, missingMandatoryDocs } = evaluationResult;
+            let prompt = `คุณคือผู้เชี่ยวชาญด้านปัญญาประดิษฐ์ทางการแพทย์ ช่วยเขียนบทสรุปผู้บริหาร (Executive Summary) สั้นๆ 1-2 ย่อหน้า เป็นภาษาไทยทางการ เพื่อรายงานให้ผู้อำนวยการโรงพยาบาลทราบถึงผลการประเมินเบื้องต้น\n\nข้อมูลโครงการ:\n- ชื่อโครงการ: ${projectInfo.projectName || 'ไม่ระบุ'}\n- บริษัทผู้พัฒนา: ${projectInfo.vendor || 'ไม่ระบุ'}\n- ระดับความเสี่ยงคลินิก: ${projectInfo.riskLevel}\n- คะแนนรวม CURE Model: ${totalScore}/32\n- ข้อเสนอแนะเบื้องต้น: ${statusText}\n`;
+            if (criticalFails.length > 0 || missingMandatoryDocs.length > 0) {
+              prompt += `\nพบความเสี่ยงสำคัญ (Critical Stop) ที่ต้องระบุในสรุปด้วย:\n${criticalFails.join('\n')}\n${missingMandatoryDocs.join('\n')}`;
+            } else { prompt += `\nไม่พบความเสี่ยงสำคัญ (Critical Stop) เอกสารและมาตรฐานอยู่ในเกณฑ์ที่รับได้`; }
+            
+            try {
+              const result = await callGemini(prompt);
+              setAiSummary(result || generateOfflineSummary());
+            } catch (error) { 
+              setAiSummary(generateOfflineSummary()); 
+            }
+            setIsGeneratingSummary(false);
+          };
+
+          useEffect(() => {
+            if (isPrintMode) {
+              const timer = setTimeout(() => {
+                try {
+                  window.print();
+                } catch (e) {
+                  console.error("เบราว์เซอร์หรือ Sandbox บล็อกป๊อปอัปพิมพ์อัตโนมัติ ผู้ใช้สามารถกด Ctrl+P หรือ Cmd+P ได้โดยตรง", e);
+                }
+              }, 700); 
+              return () => clearTimeout(timer);
+            }
+          }, [isPrintMode]);
+
+          const evaluationResult = useMemo(() => {
+            let totalScore = 0; let answeredQuestions = 0;
+            const criticalFails = []; const missingMandatoryDocs = [];
+
+            rubrics.forEach(dim => dim.questions.forEach(q => {
+              if (scores[q.id] !== null) {
+                totalScore += scores[q.id]; answeredQuestions++;
+                if (q.isCritical && scores[q.id] === 0) criticalFails.push(`${q.id} (ได้ 0 คะแนน)`);
+              }
+            }));
+
+            documentChecklist.forEach(cat => cat.items.forEach(item => {
+              if (item.type === 'mandatory' && !docs[item.id]) missingMandatoryDocs.push(`ขาดเอกสารบังคับในหมวด ${item.ref}`);
+            }));
+
+            const hasCriticalStop = criticalFails.length > 0 || missingMandatoryDocs.length > 0;
+            const isComplete = answeredQuestions === 16;
+            let status = 'INCOMPLETE'; let statusText = 'กรุณากรอกข้อมูลประเมินให้ครบถ้วน'; let statusColor = 'bg-gray-100 text-gray-800';
+
+            if (isComplete) {
+              if (hasCriticalStop) { status = 'REJECT'; statusText = 'ไม่อนุมัติโครงการ / ติดเงื่อนไข Critical Stop'; statusColor = 'bg-red-100 text-red-800 border-red-300'; }
+              else if (totalScore >= 26) { status = 'READY'; statusText = 'พร้อมดำเนินการ (Ready for Implementation)'; statusColor = 'bg-green-100 text-green-800 border-green-300'; }
+              else if (totalScore >= 17) { status = 'PILOT'; statusText = 'ควรดำเนินการนำร่อง/ทดสอบ (Pilot / Sandbox)'; statusColor = 'bg-yellow-100 text-yellow-800 border-yellow-300'; }
+              else { status = 'NOT_READY'; statusText = 'ไม่พร้อมดำเนินการ (Not Ready / High Risk)'; statusColor = 'bg-red-100 text-red-800 border-red-300'; }
+            }
+            return { totalScore, hasCriticalStop, criticalFails, missingMandatoryDocs, isComplete, status, statusText, statusColor };
+          }, [scores, docs]);
+
+          const tabs = [
+            { id: 'info', label: 'ข้อมูลทั่วไป' },
+            ...rubrics.map(r => ({ id: r.id, label: r.id + ': ' + r.name })),
+            { id: 'docs', label: 'รายการเอกสาร' },
+            { id: 'summary', label: 'สรุปผล' },
+            { id: 'settings', label: 'ตั้งค่า AI API' }
+          ];
+
+          // ============================================================================
+          // RENDER: PRINT MODE (แบบฟอร์มสกรีนขาว A4 คมชัดสูงสุด Vector-based)
+          // ============================================================================
+          if (isPrintMode) {
+            const { totalScore, hasCriticalStop, criticalFails, missingMandatoryDocs, statusText, statusColor } = evaluationResult;
+            
+            return (
+              <div className="bg-white min-h-screen text-black print-wrapper font-sarabun">
+                {/* Control bar */}
+                <div className="bg-indigo-600 text-white p-4 flex justify-between items-center shadow-md fixed top-0 left-0 w-full z-50 print:hidden">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setIsPrintMode(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition flex items-center justify-center cursor-pointer">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    </button>
+                    <span className="font-bold">โหมดเอกสารส่งรายงานสลักหลังลายเซ็นคณะกรรมการ</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => { try { window.print(); } catch(e) {} }} className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition cursor-pointer shadow">
+                      กดสั่งพิมพ์ (Save as PDF)
+                    </button>
+                    <span className="text-xs bg-indigo-800 px-3 py-1 rounded">
+                      * เลือกเครื่องพิมพ์เป็น "บันทึกเป็น PDF" ในหน้าต่างตั้งค่า
+                    </span>
+                  </div>
+                </div>
+
+                {/* A4 Sheet Container */}
+                <div className="max-w-4xl mx-auto p-12 bg-white pt-24 print:pt-0 print:p-0">
+                  <div className="text-center mb-8 border-b border-gray-300 pb-4">
+                    <h1 className="text-2xl font-bold text-gray-900 leading-normal">ใบสรุปผลการประเมิน CURE Model v2</h1>
+                    <p className="text-gray-600 text-sm mt-1">เกณฑ์มาตรฐานการรับรองความเหมาะสมปัญญาประดิษฐ์ทางการแพทย์สำหรับโรงพยาบาล</p>
+                  </div>
+
+                  {/* Project Summary info table */}
+                  <div className="border border-gray-300 p-6 rounded-lg mb-6 shadow-sm print:shadow-none break-inside-avoid">
+                    <h2 className="text-base font-bold text-gray-800 border-b pb-2 mb-4 bg-gray-50 -mx-6 px-6 -mt-6 rounded-t-lg">ข้อมูลโครงการ</h2>
+                    <table className="w-full text-sm leading-relaxed text-left border-collapse">
+                      <tbody>
+                        <tr>
+                          <td className="py-2 w-1/2 align-top">
+                            <span className="text-gray-500 font-medium mr-2">ชื่อโครงการ:</span> 
+                            <span className="font-bold text-gray-900">{projectInfo.projectName || '-'}</span>
+                          </td>
+                          <td className="py-2 w-1/2 align-top">
+                            <span className="text-gray-500 font-medium mr-2">ผู้ขาย/Vendor:</span> 
+                            <span className="font-bold text-gray-900">{projectInfo.vendor || '-'}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 w-1/2 align-top">
+                            <span className="text-gray-500 font-medium mr-2">หน่วยงานที่ใช้งาน:</span> 
+                            <span className="font-bold text-gray-900">{projectInfo.department || '-'}</span>
+                          </td>
+                          <td className="py-2 w-1/2 align-top">
+                            <span className="text-gray-500 font-medium mr-2">ระดับความเสี่ยงทางคลินิก:</span> 
+                            <span className="font-bold text-gray-900">{projectInfo.riskLevel}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 w-1/2 align-top">
+                            <span className="text-gray-500 font-medium mr-2">ผู้บันทึกผลการประเมิน:</span> 
+                            <span className="font-bold text-gray-900">{projectInfo.assessor || '-'}</span>
+                          </td>
+                          <td className="py-2 w-1/2 align-top">
+                            <span className="text-gray-500 font-medium mr-2">วันที่ประเมิน:</span> 
+                            <span className="font-bold text-gray-900">{projectInfo.assessmentDate ? new Date(projectInfo.assessmentDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Score breakdown metrics and critical stops column */}
+                  <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div className="border border-gray-300 p-6 rounded-lg break-inside-avoid shadow-sm print:shadow-none">
+                      <h2 className="text-base font-bold text-gray-800 mb-3 border-b pb-1">ดัชนีคะแนนรายมิติ</h2>
+                      <div className="space-y-2 text-sm">
+                        {rubrics.map(r => (
+                          <div key={r.id} className="flex justify-between items-center border-b border-gray-100 pb-1">
+                            <span className="text-gray-600">มิติที่ {r.id}: {r.name}</span>
+                            <span className="font-bold">{r.questions.reduce((acc, q) => acc + (scores[q.id] || 0), 0)} / 8</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-300 font-bold text-base text-indigo-700">
+                          <span>รวมคะแนนสุทธิ</span>
+                          <span>{totalScore} / 32 คะแนน</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border border-gray-300 p-6 rounded-lg break-inside-avoid shadow-sm print:shadow-none">
+                      <h2 className="text-base font-bold text-gray-800 mb-3 border-b pb-1">มาตรการสแกนความปลอดภัย</h2>
+                      {hasCriticalStop ? (
+                        <div className="text-red-700">
+                          <div className="flex items-center gap-1.5 font-bold mb-2 text-sm">
+                            พบจุดขัดข้องเชิงโครงสร้าง (Critical Stop)
+                          </div>
+                          <ul className="list-disc pl-5 text-xs space-y-1">
+                            {criticalFails.map((f, i) => <li key={i}>ประเมินตกหัวข้อบังคับ: {f}</li>)}
+                            {missingMandatoryDocs.map((d, i) => <li key={i}>{d}</li>)}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="text-green-700 flex flex-col items-center justify-center h-28 text-center">
+                          <svg className="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                          <p className="font-bold text-sm">ผ่านเกณฑ์ความปลอดภัยสูงสุด</p>
+                          <p className="text-xs">ไม่พบข้อขัดข้องระดับวิกฤต</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Summary status block */}
+                  <div className={`p-4 rounded-lg border-2 ${statusColor} text-center mb-6 break-inside-avoid shadow-sm print:shadow-none`}>
+                    <p className="text-xs font-bold uppercase opacity-80 mb-0.5">ผลสรุปมติการพิจารณาตัดสินใจ</p>
+                    <p className="text-lg font-bold">{statusText}</p>
+                  </div>
+
+                  {/* AI Generated executive summary */}
+                  <div className="border border-gray-300 p-6 rounded-lg mb-8 break-inside-avoid shadow-sm print:shadow-none">
+                    <h2 className="text-base font-bold text-gray-900 mb-3 border-b pb-1">บทสรุปผู้บริหารและคำสั่งการ (Executive Summary)</h2>
+                    <div className="text-gray-800 text-sm leading-relaxed whitespace-pre-line text-left">
+                      {aiSummary || <span className="italic text-gray-400">ไม่ได้สร้างข้อความจำลองสรุปผู้บริหารผ่านระบบ AI (กรุณากลับไปกดปุ่ม "สร้างบทสรุป ✨" ในหน้าเว็บปกติก่อนดาวน์โหลดไฟล์)</span>}
+                    </div>
+                  </div>
+
+                  {/* Formal signatures container block */}
+                  <div className="pt-6 border-t border-gray-300 break-inside-avoid">
+                    <p className="font-bold text-sm mb-6 text-left">สลักหลังลายมือชื่อและบันทึกความเห็นชอบคณะกรรมการประเมิน:</p>
+                    <div className="flex items-center gap-6 mb-12 text-sm text-left pl-2">
+                      <div className="flex items-center gap-2"><div className="w-4 h-4 border border-black rounded-sm"></div> อนุมัติจัดจัดซื้อ/จัดจ้าง</div>
+                      <div className="flex items-center gap-2"><div className="w-4 h-4 border border-black rounded-sm ml-6"></div> เห็นชอบนำร่องใช้งานแบบ Sandbox</div>
+                      <div className="flex items-center gap-2"><div className="w-4 h-4 border border-black rounded-sm ml-6"></div> ไม่อนุมัติสัญญาการใช้</div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-12 text-center mt-6">
+                      <div className="pb-8">
+                        <div className="border-b border-gray-400 w-full mb-2 h-8"></div>
+                        <p className="text-xs font-bold text-gray-700">ผู้รับผิดชอบหลักทางคลินิก (Clinical Owner)</p>
+                      </div>
+                      <div className="pb-8">
+                        <div className="border-b border-gray-400 w-full mb-2 h-8"></div>
+                        <p className="text-xs font-bold text-gray-700">หัวหน้าฝ่ายเทคโนโลยีสารสนเทศ (IT Department)</p>
+                      </div>
+                      <div className="pb-8">
+                        <div className="border-b border-gray-400 w-full mb-2 h-8"></div>
+                        <p className="text-xs font-bold text-gray-700">ผู้แทนฝ่ายกฎหมาย / เจ้าหน้าที่คุ้มครองข้อมูล (DPO)</p>
+                      </div>
+                      <div className="pb-8">
+                        <div className="border-b border-gray-400 w-full mb-2 h-8"></div>
+                        <p className="text-xs font-bold text-gray-700">ผู้อำนวยการ / ผู้บริหารระดับสูงของโรงพยาบาล</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <style dangerouslySetInnerHTML={{__html: `
+                  @media print {
+                    body * { visibility: hidden !important; }
+                    .print-wrapper, .print-wrapper * { visibility: visible !important; }
+                    html, body {
+                      height: auto !important;
+                      min-height: auto !important;
+                      overflow: visible !important;
+                      position: static !important;
+                      display: block !important;
+                      background: white !important;
+                      color: black !important;
+                    }
+                    .print-wrapper {
+                      position: absolute !important;
+                      left: 0 !important;
+                      top: 0 !important;
+                      width: 100% !important;
+                      height: auto !important;
+                      box-shadow: none !important;
+                    }
+                    .print\\:hidden { display: none !important; }
+                    @page { size: A4 portrait; margin: 15mm; }
+                    .break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
+                  }
+                `}} />
+              </div>
+            );
+          }
+
+          // ============================================================================
+          // RENDER: NORMAL WEB INTERFACE
+          // ============================================================================
+          return (
+            <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col md:flex-row">
+              
+              {/* Sidebar Menu */}
+              <div className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
+                <div className="p-4 border-b border-gray-200 bg-indigo-600 text-white flex justify-between items-center">
+                  <div>
+                    <h1 className="font-bold text-xl leading-tight">CURE Model v2</h1>
+                    <p className="text-xs opacity-80 mt-1">Medical AI Assessment</p>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('settings')} 
+                    className="p-1.5 hover:bg-white/10 rounded-lg transition cursor-pointer"
+                    title="ตั้งค่า API Key"
+                  >
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition flex justify-between items-center cursor-pointer ${activeTab === tab.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      {tab.label}
+                      {activeTab === tab.id && <svg className="w-4 h-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>}
+                    </button>
+                  ))}
+                </div>
+                <div className="p-4 border-t border-gray-200 bg-gray-50">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>ความคืบหน้า</span>
+                    <span>{Object.values(scores).filter(s => s !== null).length} / 16</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div className="bg-indigo-600 h-full transition-all duration-300" style={{ width: `${(Object.values(scores).filter(s => s !== null).length / 16) * 100}%` }}></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content Panel */}
+              <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+                <div className="max-w-4xl mx-auto pb-20">
+                  
+                  {/* Tab 1: ข้อมูลทั่วไป */}
+                  {activeTab === 'info' && (
+                     <div className="space-y-6 animate-fadeIn">
+                       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                         <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                           <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                           ระบุข้อมูลโครงการเริ่มต้น
+                         </h2>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div><label className="block text-sm font-medium text-gray-700 mb-1">ชื่อโครงการปัญญาประดิษฐ์</label><input type="text" name="projectName" value={projectInfo.projectName} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="ระบุชื่อซอฟต์แวร์ AI" /></div>
+                           <div><label className="block text-sm font-medium text-gray-700 mb-1">บริษัทผู้พัฒนา / ผู้ขาย</label><input type="text" name="vendor" value={projectInfo.vendor} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                           <div><label className="block text-sm font-medium text-gray-700 mb-1">แผนก/ฝ่ายที่ใช้งาน</label><input type="text" name="department" value={projectInfo.department} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                           <div><label className="block text-sm font-medium text-gray-700 mb-1">ระดับความเสี่ยงทางคลินิก</label><select name="riskLevel" value={projectInfo.riskLevel} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"><option value="ต่ำ">ต่ำ</option><option value="ปานกลาง">ปานกลาง</option><option value="สูง">สูง</option></select></div>
+                           <div><label className="block text-sm font-medium text-gray-700 mb-1">ผู้ประเมิน / คณะทำงาน</label><input type="text" name="assessor" value={projectInfo.assessor} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="ระบุชื่อผู้บันทึกการประเมิน" /></div>
+                           <div><label className="block text-sm font-medium text-gray-700 mb-1">วันที่ประเมิน</label><input type="date" name="assessmentDate" value={projectInfo.assessmentDate} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                         </div>
+                       </div>
+                       
+                       <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-xl flex items-start gap-4">
+                         <div className="text-indigo-600 mt-1 flex-shrink-0">
+                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                         </div>
+                         <div>
+                           <h3 className="font-bold text-indigo-900 text-base mb-1">ใช้งานแอปพลิเคชันได้โดยตรง</h3>
+                           <p className="text-sm text-indigo-700 leading-relaxed">
+                             แบบประเมินฉบับนี้พร้อมใช้งานได้ทันทีโดยไม่ต้องทำการสร้างบัญชีผู้ใช้หรือลงทะเบียน คุณสามารถใช้งานร่วมกันในการประชุมทีมสหสาขาวิชาชีพของโรงพยาบาล และสั่งพิมพ์ใบสลักหลังลายเซ็นคณะกรรมการได้จากหน้าสรุปผลครับ
+                           </p>
+                         </div>
+                       </div>
+
+                       <div className="flex justify-end"><button onClick={() => setActiveTab('C')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer transition">เริ่มต้นประเมิน <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></button></div>
+                     </div>
+                  )}
+
+                  {/* Tab 2-5: มิติเกณฑ์การประเมิน C-U-R-E */}
+                  {['C', 'U', 'R', 'E'].includes(activeTab) && (() => {
+                    const dimData = rubrics.find(r => r.id === activeTab);
+                    return (
+                      <div className="space-y-6 animate-fadeIn">
+                        <div className={`p-4 rounded-xl border ${dimData.color} flex items-center gap-3`}>
+                          <SVGIcon name={dimData.icon} className="w-8 h-8" />
+                          <div><h2 className="text-lg font-bold">มิติที่ {activeTab === 'C' ? '1' : activeTab === 'U' ? '2' : activeTab === 'R' ? '3' : '4'}: {dimData.name}</h2><p className="text-sm opacity-90">{dimData.title}</p></div>
+                        </div>
+                        {dimData.questions.map(q => (
+                          <div key={q.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition">
+                            <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
+                              <div>
+                                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                  <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{q.id}</span>
+                                  {q.title}
+                                  {q.isCritical && <span className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded-full">⚠ Critical Stop</span>}
+                                </h3>
+                                <p className="text-sm text-gray-600 mt-1">{q.desc}</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                              {q.options.map(opt => {
+                                const isSelected = scores[q.id] === opt.score;
+                                const isZeroCritical = q.isCritical && opt.score === 0;
+                                return (
+                                  <div key={opt.score} onClick={() => handleScoreChange(q.id, opt.score)} className={`p-4 cursor-pointer transition ${isSelected ? (isZeroCritical ? 'bg-red-50 md:border-l-4 border-red-500' : 'bg-indigo-50 md:border-l-4 border-indigo-500') : 'hover:bg-gray-50'}`}>
+                                    <div className="flex justify-between mb-2"><span className={`font-bold ${isSelected ? (isZeroCritical ? 'text-red-700' : 'text-indigo-700') : 'text-gray-700'}`}>{opt.label} ({opt.score})</span></div>
+                                    <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">{opt.detail}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex justify-between mt-6">
+                          <button onClick={() => setActiveTab(tabs[tabs.findIndex(t => t.id === activeTab)-1].id)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">ย้อนกลับ</button>
+                          <button onClick={() => setActiveTab(tabs[tabs.findIndex(t => t.id === activeTab)+1].id)} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer">ถัดไป</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Tab 6: รายการตรวจสอบเอกสารแนบ */}
+                  {activeTab === 'docs' && (
+                    <div className="space-y-6 animate-fadeIn">
+                      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            ตรวจสอบเอกสารแนบผู้เสนอโครงการ
+                          </h2>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-6">กรุณาทำเครื่องหมายถูกในช่องรายการเอกสารที่ทางบริษัทจัดหามามอบไว้กับผู้ประเมิน เพื่อวิเคราะห์ความถูกต้อง</p>
+                        
+                        <div className="space-y-6">
+                          {documentChecklist.map((cat, idx) => (
+                            <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                              <div className="bg-gray-100 px-4 py-3 font-bold text-gray-700 border-b border-gray-200 text-sm">{cat.category}</div>
+                              <div className="divide-y divide-gray-100 bg-white">
+                                {cat.items.map(doc => {
+                                  const isMandatory = doc.type === 'mandatory';
+                                  const isChecked = docs[doc.id] || false;
+                                  return (
+                                    <label 
+                                      key={doc.id} 
+                                      className={`flex items-start gap-3 p-4 cursor-pointer transition-all ${
+                                        isMandatory 
+                                          ? (isChecked ? 'bg-orange-50/20 border-l-4 border-orange-500' : 'bg-red-50 border-l-4 border-red-500') 
+                                          : 'hover:bg-indigo-50/20'
+                                      }`}
+                                    >
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isChecked} 
+                                        onChange={() => handleDocChange(doc.id)} 
+                                        className={`mt-1.5 w-5 h-5 rounded cursor-pointer transition ${isMandatory ? 'accent-red-600 text-red-600' : 'accent-indigo-600 text-indigo-600'}`} 
+                                      />
+                                      <div className="flex-1">
+                                        <p className={`text-sm ${isMandatory ? 'font-bold text-red-900' : 'text-gray-700'}`}>
+                                          {isMandatory && (
+                                            <span className="bg-red-600 text-white text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded mr-2 inline-block align-middle">
+                                              ● บังคับ (Critical Stop)
+                                            </span>
+                                          )}
+                                          {doc.text}
+                                        </p>
+                                        {isMandatory && !isChecked && (
+                                          <span className="text-[11px] text-red-600 font-bold mt-1.5 flex items-center gap-1">
+                                            ต้องแนบเอกสารนี้เพื่อความปลอดภัย (Critical Stop {doc.ref})
+                                          </span>
+                                        )}
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* AI Draft Email request */}
+                        <div className="mt-8 border-t pt-6 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                            <div>
+                              <h3 className="font-bold text-indigo-800 text-base">ตัวช่วยสร้างหนังสือทวงถามเอกสารเพิ่มเติม</h3>
+                              <p className="text-xs text-gray-500">จำลองการประดิษฐ์จดหมายขอเอกสารเพิ่มเติมกับคู่ค้าตามข้อกำหนดด้านเครื่องมือแพทย์</p>
+                            </div>
+                            <button 
+                              onClick={handleGenerateEmail} 
+                              disabled={isGeneratingEmail} 
+                              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 cursor-pointer transition disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {isGeneratingEmail ? "กำลังประมวล..." : "ร่างหนังสือ ✨"}
+                            </button>
+                          </div>
+                          {aiEmailDraft && <textarea className="w-full h-48 p-3 text-sm border border-gray-300 rounded-lg bg-white shadow-inner focus:ring-2 focus:ring-indigo-500 outline-none font-sarabun" value={aiEmailDraft} onChange={(e) => setAiEmailDraft(e.target.value)} />}
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <button onClick={() => setActiveTab('E')} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">ย้อนกลับ</button>
+                        <button onClick={() => setActiveTab('summary')} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 cursor-pointer">ดูรายงานผล</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 7: ผลสรุป */}
+                  {activeTab === 'summary' && (
+                    <div className="space-y-6 animate-fadeIn">
+                       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center">
+                         <h2 className="text-2xl font-bold text-gray-900 mb-2">มติการพิจารณาตัดสินใจเบื้องต้น</h2>
+                         <p className="text-gray-600 mb-6 font-medium">สแกนผลคะแนนและจัดพรีวิวเอกสารขนาด A4 เสนอผู้อำนวยการลงนามสั่งซื้อ</p>
+                         
+                         <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-200 text-left mb-8">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                              <h2 className="text-lg font-bold text-indigo-900">บทสรุปผู้บริหารโดย AI</h2>
+                              <button onClick={handleGenerateSummary} disabled={isGeneratingSummary} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 cursor-pointer transition disabled:opacity-50">
+                                {isGeneratingSummary ? "กำลังวิเคราะห์..." : "สร้างข้อเขียนสรุป ✨"}
+                              </button>
+                            </div>
+                            {aiSummary ? (
+                              <div className="prose prose-sm text-gray-800 whitespace-pre-line bg-white p-4 rounded-lg border border-indigo-100 shadow-inner font-sarabun">
+                                {aiSummary}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-indigo-600/70 italic">กดยืนยันเพื่อสรุปวิเคราะห์ผลคะแนนเป็นประโยคข้อเขียนภาษาราชการ</p>
+                            )}
+                         </div>
+
+                         <div className="bg-white p-6 rounded-xl border border-gray-200 mb-4 max-w-lg mx-auto shadow-sm text-left">
+                           <p className="text-sm text-gray-600 font-semibold mb-3">เมื่อคลิกปุ่ม ระบบจะจัดหน้าสำหรับสั่งพิมพ์สลักหลังลายเซ็นขนาด A4 ให้ทันที</p>
+                           <button 
+                             onClick={() => setIsPrintMode(true)} 
+                             className="bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 inline-flex items-center gap-2 font-bold shadow-md w-full justify-center text-lg transition-transform hover:scale-105 cursor-pointer"
+                           >
+                             เปิดโหมดสั่งพิมพ์ / Save as PDF
+                           </button>
+                           
+                           <div className="mt-4 border-t pt-3">
+                             <p className="text-xs text-orange-600 font-bold mb-1">💡 เกร็ดความรู้ในการเซฟไฟล์ PDF:</p>
+                             <p className="text-xs text-gray-500 leading-normal">ในขั้นตอนตั้งค่าตัวเบราว์เซอร์ ให้เลือก Destination (เครื่องพิมพ์) เป็น "Save as PDF" หรือ "บันทึกเป็น PDF" จะทำให้ตัวหนังสือทุกตัวคมชัดสูงสุด ซูมไม่แตก และประหยัดพลังงานครับ</p>
+                           </div>
+                         </div>
+                       </div>
+                    </div>
+                  )}
+
+                  {/* Tab 8: ตั้งค่าคีย์ API */}
+                  {activeTab === 'settings' && (
+                    <div className="space-y-6 animate-fadeIn">
+                      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">ตั้งค่า API Key</h2>
+                        <p className="text-sm text-gray-500 mb-6">หากต้องการใช้ระบบ Google Gemini แท้ในการประมวลผลข้อเขียนวิเคราะห์ ให้กรอก API Key ด้านล่างนี้ (หากเว้นว่างไว้ ระบบจะใช้ Local Engine ในเครื่องแทนโดยอัตโนมัติ)</p>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Gemini API Key</label>
+                            <input 
+                              type="password" 
+                              value={geminiKey} 
+                              onChange={(e) => setGeminiKey(e.target.value)} 
+                              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono" 
+                              placeholder="AIzaSy..." 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button onClick={() => setActiveTab('info')} className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold cursor-pointer hover:bg-indigo-700 transition">กลับไปหน้าประเมิน</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <style dangerouslySetInnerHTML={{__html: `.animate-fadeIn { animation: fadeIn 0.3s ease-in-out; } @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`}} />
+            </div>
+          );
+        }
+
+        // Mounting App to the HTML DOM
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<CureModelApp />);
+    </script>
+</body>
+</html>
