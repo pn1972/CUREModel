@@ -425,7 +425,7 @@
 
           const callGemini = async (prompt) => {
             const key = geminiKey.trim();
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`;
             const payload = { contents: [{ parts: [{ text: prompt }] }] };
             const delays = [1000, 2000, 4000, 8000, 16000];
             
