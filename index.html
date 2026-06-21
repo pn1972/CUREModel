@@ -309,7 +309,8 @@
         }
 
         function CureModelApp() {
-          const [activeTab, setActiveTab] = useState('info'); 
+          const [activeView, setActiveView] = useState('info'); // ควบคุมหน้าที่จะแสดง: 'info', 'C1', 'C2', ..., 'glossary', 'summary'
+          const [expandedDims, setExpandedDims] = useState({ C: true, U: false, R: false, E: false }); // ควบคุมการเปิด/ปิดเมนูมิติ
           const [isPrintMode, setIsPrintMode] = useState(false); 
           const [showResetModal, setShowResetModal] = useState(false);
           const [searchTerm, setSearchTerm] = useState('');
@@ -326,9 +327,37 @@
           const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
           const [geminiKey, setGeminiKey] = useState('');
 
+          // สร้าง Navigation Flow สำหรับปุ่ม ถัดไป/ย้อนกลับ
+          const navFlow = useMemo(() => {
+            const flow = ['info'];
+            rubrics.forEach(dim => dim.questions.forEach(q => flow.push(q.id)));
+            flow.push('glossary', 'summary');
+            return flow;
+          }, []);
+
+          const allDocItems = useMemo(() => {
+            return documentChecklist.reduce((acc, cat) => [...acc, ...cat.items], []);
+          }, []);
+
           const handleScoreChange = (qId, score) => setScores(prev => ({ ...prev, [qId]: score }));
           const handleDocChange = (docId) => setDocs(prev => ({ ...prev, [docId]: !prev[docId] }));
           const handleInfoChange = (e) => setProjectInfo(prev => ({ ...prev, [e.target.name]: e.target.value }));
+          const toggleDim = (dimId) => setExpandedDims(prev => ({ ...prev, [dimId]: !prev[dimId] }));
+
+          const scrollToSection = (sectionId) => {
+            const el = document.getElementById(sectionId);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          };
+
+          const handleNavChange = (newView) => {
+            setActiveView(newView);
+            // ถ้ากดข้อย่อย (เช่น C1) ให้สั่งกางเมนูมิตินั้นๆ ออกอัตโนมัติ
+            if (/^[CURE][1-4]$/.test(newView)) {
+              const dimId = newView.charAt(0);
+              setExpandedDims(prev => ({ ...prev, [dimId]: true }));
+            }
+            window.scrollTo(0, 0);
+          };
 
           const confirmReset = () => {
             setProjectInfo({ projectName: '', vendor: '', department: '', assessor: '', assessmentDate: '', riskLevel: 'ปานกลาง' });
@@ -343,7 +372,7 @@
             
             setAiSummary('');
             setAiEmailDraft('');
-            setActiveTab('info');
+            setActiveView('info');
             setShowResetModal(false);
           };
 
@@ -375,7 +404,7 @@
 
           const generateOfflineEmail = () => {
             const missingDocs = [];
-            documentChecklist.forEach(cat => cat.items.forEach(item => { if (!docs[item.id]) missingDocs.push(item.text); }));
+            allDocItems.forEach(item => { if (!docs[item.id]) missingDocs.push(item.text); });
             
             let text = `เรื่อง: ขอความอนุเคราะห์จัดส่งเอกสารรับรองมาตรฐานเพิ่มเติมประกอบการพิจารณาประเมินเทคโนโลยี AI\n`;
             text += `เรียน: ฝ่ายประสานงานจัดซื้อ บริษัท ${projectInfo.vendor || '(ชื่อบริษัทคู่ค้า)'}\n\n`;
@@ -424,7 +453,7 @@
             }
 
             const missingDocs = [];
-            documentChecklist.forEach(cat => cat.items.forEach(item => { if (!docs[item.id]) missingDocs.push(item.text); }));
+            allDocItems.forEach(item => { if (!docs[item.id]) missingDocs.push(item.text); });
             if (missingDocs.length === 0) { setAiEmailDraft("เอกสารแนบครบถ้วนดีแล้ว ไม่จำเป็นต้องทำแบบคำร้องขอเอกสารเพิ่มเติมครับ"); setIsGeneratingEmail(false); return; }
 
             const prompt = `คุณคือเจ้าหน้าที่ประเมินโครงการ AI ของโรงพยาบาล ช่วยร่างอีเมลภาษาไทยแบบเป็นทางการและสุภาพ เพื่อขอเอกสารเพิ่มเติมจากบริษัทผู้พัฒนา/ผู้ขาย (${projectInfo.vendor || 'ระบุชื่อบริษัท'}) สำหรับโครงการ "${projectInfo.projectName || 'ไม่ระบุชื่อโครงการ'}" โดยรายการเอกสารที่ขาดและจำเป็นต้องใช้ประกอบการพิจารณามีดังนี้:\n\n${missingDocs.map(d => "- " + d).join('\n')}\n\nขอให้เขียนเป็นอีเมลที่พร้อมคัดลอกไปส่งได้เลย มีคำขึ้นต้นและคำลงท้ายที่เหมาะสม`;
@@ -468,7 +497,7 @@
                 try {
                   window.print();
                 } catch (e) {
-                  console.error("เบราว์เซอร์หรือ Sandbox บล็อกป๊อปอัปพิมพ์อัตโนมัติ ผู้ใช้สามารถกด Ctrl+P หรือ Cmd+P ได้โดยตรง", e);
+                  console.error("เบราว์เซอร์บล็อกป๊อปอัปพิมพ์อัตโนมัติ ผู้ใช้สามารถกด Ctrl+P หรือ Cmd+P ได้โดยตรง", e);
                 }
               }, 700); 
               return () => clearTimeout(timer);
@@ -486,9 +515,9 @@
               }
             }));
 
-            documentChecklist.forEach(cat => cat.items.forEach(item => {
-              if (item.type === 'mandatory' && !docs[item.id]) missingMandatoryDocs.push(`ขาดเอกสารบังคับในหมวด ${item.ref}`);
-            }));
+            allDocItems.forEach(item => {
+              if (item.type === 'mandatory' && !docs[item.id]) missingMandatoryDocs.push(`ขาดเอกสารบังคับ ${item.ref}: ${item.text.split(' ')[0]}`);
+            });
 
             const hasCriticalStop = criticalFails.length > 0 || missingMandatoryDocs.length > 0;
             const isComplete = answeredQuestions === 16;
@@ -501,16 +530,68 @@
               else { status = 'NOT_READY'; statusText = 'ไม่พร้อมดำเนินการ (Not Ready / High Risk)'; statusColor = 'bg-red-100 text-red-800 border-red-300'; }
             }
             return { totalScore, hasCriticalStop, criticalFails, missingMandatoryDocs, isComplete, status, statusText, statusColor };
-          }, [scores, docs]);
+          }, [scores, docs, allDocItems]);
 
-          const tabs = [
-            { id: 'info', label: 'ข้อมูลทั่วไป' },
-            ...rubrics.map(r => ({ id: r.id, label: r.id + ': ' + r.name })),
-            { id: 'docs', label: 'รายการเอกสาร' },
-            { id: 'glossary', label: 'อภิธานศัพท์' },
-            { id: 'summary', label: 'สรุปผล' },
-            { id: 'settings', label: 'ตั้งค่า AI API' }
-          ];
+          // เรนเดอร์เมนูด้านซ้ายตามโครงสร้างใหม่
+          const renderSidebar = () => {
+            return (
+              <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[#252525] text-gray-300">
+                <button
+                  onClick={() => handleNavChange('info')}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${activeView === 'info' ? 'bg-[#3b3b3b] text-white' : 'hover:bg-[#333]'}`}
+                >
+                  ข้อมูลทั่วไป
+                </button>
+
+                {rubrics.map((dim, idx) => (
+                  <div key={dim.id} className="mt-2">
+                    <button
+                      onClick={() => toggleDim(dim.id)}
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm font-bold text-gray-100 flex justify-between items-center hover:bg-[#333] cursor-pointer"
+                    >
+                      มิติที่ {idx + 1}: {dim.name}
+                      <svg className={`w-4 h-4 transform transition-transform ${expandedDims[dim.id] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    
+                    {expandedDims[dim.id] && (
+                      <div className="pl-4 mt-1 space-y-1">
+                        {dim.questions.map(q => (
+                          <div key={q.id}>
+                            <button
+                              onClick={() => handleNavChange(q.id)}
+                              className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition cursor-pointer flex items-start gap-2 ${activeView === q.id ? 'bg-[#3b3b3b] text-white' : 'hover:bg-[#333] text-gray-400'}`}
+                            >
+                              <span className="opacity-50 mt-0.5">-</span>
+                              <span className="flex-1 leading-tight">{q.id} {q.title}</span>
+                            </button>
+                            
+                            {/* แสดง Submenu ประเมิน/เอกสาร เมื่อเลือกข้อนี้อยู่ */}
+                            {activeView === q.id && (
+                              <div className="pl-6 py-1 space-y-1">
+                                <button onClick={() => scrollToSection(`score-${q.id}`)} className="w-full text-left px-3 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-[#444] transition flex items-center gap-2 cursor-pointer">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle></svg> ประเมินคะแนน
+                                </button>
+                                <button onClick={() => scrollToSection(`docs-${q.id}`)} className="w-full text-left px-3 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-[#444] transition flex items-center gap-2 cursor-pointer">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle></svg> รายการเอกสาร
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <button onClick={() => handleNavChange('glossary')} className={`w-full text-left px-3 py-2 mt-2 rounded-lg text-sm font-medium transition cursor-pointer ${activeView === 'glossary' ? 'bg-[#3b3b3b] text-white' : 'hover:bg-[#333]'}`}>
+                  อภิธานศัพท์
+                </button>
+                <button onClick={() => handleNavChange('summary')} className={`w-full text-left px-3 py-2 mt-1 rounded-lg text-sm font-medium transition cursor-pointer ${activeView === 'summary' ? 'bg-[#3b3b3b] text-white' : 'hover:bg-[#333]'}`}>
+                  สรุปผล
+                </button>
+              </div>
+            );
+          };
 
           const renderGlossaryTab = () => {
             const filteredTerms = glossaryData.filter(item => 
@@ -758,42 +839,28 @@
           return (
             <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col md:flex-row">
               
-              {/* Sidebar Menu */}
-              <div className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
-                <div className="p-4 border-b border-gray-200 bg-indigo-600 text-white flex justify-between items-center">
+              {/* Sidebar Menu (Dark Mode as requested by reference image style) */}
+              <div className="w-full md:w-72 bg-[#252525] border-r border-[#333] flex flex-col shadow-sm z-10">
+                <div className="p-4 border-b border-[#333] bg-[#1a1a1a] text-white flex justify-between items-center">
                   <div>
-                    <h1 className="font-bold text-xl leading-tight">CURE Model v2</h1>
-                    <p className="text-xs opacity-80 mt-1">Medical AI Assessment</p>
+                    <h1 className="font-bold text-lg tracking-wide">CURE Model v2</h1>
                   </div>
-                  <button 
-                    onClick={() => setActiveTab('settings')} 
-                    className="p-1.5 hover:bg-white/10 rounded-lg transition cursor-pointer"
-                    title="ตั้งค่า API Key"
-                  >
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  <button onClick={() => handleNavChange('settings')} className="p-1.5 hover:bg-white/10 rounded-lg transition cursor-pointer text-gray-400 hover:text-white" title="ตั้งค่า API Key">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-1">
-                  {tabs.map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition flex justify-between items-center cursor-pointer ${activeTab === tab.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      {tab.label}
-                      {activeTab === tab.id && <svg className="w-4 h-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>}
-                    </button>
-                  ))}
-                </div>
-                <div className="p-4 border-t border-gray-200 bg-gray-50">
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>ความคืบหน้า</span>
+                
+                {renderSidebar()}
+
+                <div className="p-4 border-t border-[#333] bg-[#1a1a1a]">
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>ความคืบหน้าการประเมิน</span>
                     <span>{Object.values(scores).filter(s => s !== null).length} / 16</span>
                   </div>
-                  <div className="w-full bg-gray-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div className="bg-indigo-600 h-full transition-all duration-300" style={{ width: `${(Object.values(scores).filter(s => s !== null).length / 16) * 100}%` }}></div>
+                  <div className="w-full bg-[#333] h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div className="bg-indigo-500 h-full transition-all duration-300" style={{ width: `${(Object.values(scores).filter(s => s !== null).length / 16) * 100}%` }}></div>
                   </div>
-                  <button onClick={() => setShowResetModal(true)} className="mt-4 w-full py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-bold hover:bg-red-50 transition cursor-pointer flex justify-center items-center gap-2 shadow-sm">
+                  <button onClick={() => setShowResetModal(true)} className="mt-4 w-full py-2 bg-[#252525] border border-[#444] text-red-400 rounded-lg text-sm hover:bg-[#333] hover:text-red-300 transition cursor-pointer flex justify-center items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                     เริ่มประเมินใหม่
                   </button>
@@ -805,7 +872,7 @@
                 <div className="max-w-4xl mx-auto pb-20">
                   
                   {/* Tab 1: ข้อมูลทั่วไป */}
-                  {activeTab === 'info' && (
+                  {activeView === 'info' && (
                      <div className="space-y-6 animate-fadeIn">
                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -822,82 +889,140 @@
                          </div>
                        </div>
                        
-                       <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-xl flex items-start gap-4">
-                         <div className="text-indigo-600 mt-1 flex-shrink-0">
-                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                         <div className="p-4 bg-indigo-50 border-b border-indigo-100">
+                           <h3 className="font-bold text-indigo-900 flex items-center gap-2">
+                             <SVGIcon name="info" className="w-5 h-5" />
+                             ข้อมูลและแนวทางการประเมิน CURE Model v2
+                           </h3>
                          </div>
-                         <div>
-                           <h3 className="font-bold text-indigo-900 text-base mb-1">ใช้งานแอปพลิเคชันได้โดยตรง</h3>
-                           <p className="text-sm text-indigo-700 leading-relaxed">
-                             แบบประเมินฉบับนี้พร้อมใช้งานได้ทันทีโดยไม่ต้องทำการสร้างบัญชีผู้ใช้หรือลงทะเบียน คุณสามารถใช้งานร่วมกันในการประชุมทีมสหสาขาวิชาชีพของโรงพยาบาล และสั่งพิมพ์ใบสลักหลังลายเซ็นคณะกรรมการได้จากหน้าสรุปผลครับ
-                           </p>
+                         <div className="overflow-x-auto">
+                           <table className="w-full text-sm text-left text-gray-700">
+                             <tbody className="divide-y divide-gray-200">
+                               <tr className="hover:bg-gray-50 transition-colors">
+                                 <td className="px-6 py-4 font-bold text-gray-900 bg-gray-100/50 w-1/4 align-top">วัตถุประสงค์</td>
+                                 <td className="px-6 py-4 leading-relaxed">
+                                   เพื่อใช้เป็นเครื่องมือหลักในการคัดกรองและประเมินความพร้อมของโครงการปัญญาประดิษฐ์ทางการแพทย์ ก่อนเข้าสู่กระบวนการพิจารณาอนุมัติการนำไปทดลองใช้ หรือการจัดซื้อจัดจ้าง ในบริบทของสถานพยาบาลในประเทศไทย
+                                 </td>
+                               </tr>
+                               <tr className="hover:bg-gray-50 transition-colors">
+                                 <td className="px-6 py-4 font-bold text-gray-900 bg-gray-100/50 w-1/4 align-top">โครงสร้าง</td>
+                                 <td className="px-6 py-4 leading-relaxed">
+                                   ประกอบด้วย 4 มิติหลัก ครอบคลุม 16 ประเด็นประเมิน ดังนี้:
+                                   <ol className="list-decimal pl-5 mt-2 space-y-1">
+                                     <li>มิติด้านประสิทธิภาพและความน่าเชื่อถือทางคลินิก (Clinical Performance & Reliability)</li>
+                                     <li>มิติด้านการนำไปใช้งานและคุณค่าที่ได้รับ (Usability & Value)</li>
+                                     <li>มิติด้านกฎระเบียบ ความเสี่ยง และธรรมาภิบาล (Regulation, Risk & Governance)</li>
+                                     <li>มิติด้านจริยธรรม ความเสมอภาค และความน่าเชื่อถือ (Ethics, Equity & Trust)</li>
+                                   </ol>
+                                 </td>
+                               </tr>
+                               <tr className="hover:bg-gray-50 transition-colors">
+                                 <td className="px-6 py-4 font-bold text-gray-900 bg-gray-100/50 w-1/4 align-top">วิธีการประเมิน</td>
+                                 <td className="px-6 py-4 leading-relaxed">
+                                   <ol className="list-decimal pl-5 space-y-2">
+                                     <li><span className="font-semibold">กำหนดบริบทการใช้งาน (Define Context):</span> ระบุ Use case, Intended user, Target population, Clinical workflow และระดับความเสี่ยงต่อผู้ป่วยให้ชัดเจนก่อนเริ่มประเมิน</li>
+                                     <li><span className="font-semibold">รวบรวมเอกสารหลักฐาน (Evidence Gathering):</span> รวบรวมเอกสารจากผู้ขายหรือเจ้าของโครงการตามรายการหลักฐาน โดยแยกตรวจสอบเอกสารบังคับและเอกสารมาตรฐาน</li>
+                                     <li><span className="font-semibold">การประเมินโดยคณะทำงานสหสาขาวิชาชีพ (Multidisciplinary Team Evaluation):</span> ประเมินร่วมกันโดยคณะทำงานที่ประกอบด้วย ผู้รับผิดชอบหลักทางคลินิก ฝ่ายเทคโนโลยีสารสนเทศ ฝ่ายกฎหมายและการคุ้มครองข้อมูล ฝ่ายบริหารความเสี่ยง ฝ่ายจัดซื้อจัดจ้าง ตัวแทนด้านจริยธรรม และผู้แทนกลุ่มผู้ใช้งานจริง</li>
+                                     <li><span className="font-semibold">การให้คะแนนและบันทึกผล:</span> ให้คะแนนในแต่ละหัวข้อตามเกณฑ์ และระบุข้อสังเกต/เงื่อนไขเพิ่มเติม</li>
+                                     <li className="text-red-600 font-medium">
+                                       <span className="flex items-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>เงื่อนไขหยุดพิจารณาทันที (Critical Stop):</span> 
+                                       หากพบว่าประเด็นใดประเด็นหนึ่งในหัวข้อ C1, R1, R2, R3 และ E3 ได้รับ 0 คะแนน หรือขาดเอกสารหลักฐานที่กำหนดเป็น เอกสารบังคับ ให้หยุดการอนุมัติใช้งานจริงทันที แม้คะแนนรวมทั้งหมดจะอยู่ในเกณฑ์สูง และต้องให้ผู้เสนอโครงการแก้ไขหลักฐาน/ระบบก่อนทำการประเมินซ้ำ
+                                     </li>
+                                   </ol>
+                                 </td>
+                               </tr>
+                               <tr className="hover:bg-gray-50 transition-colors">
+                                 <td className="px-6 py-4 font-bold text-gray-900 bg-gray-100/50 w-1/4 align-top">การให้คะแนน</td>
+                                 <td className="px-6 py-4 leading-relaxed">
+                                   <ul className="list-disc pl-5 space-y-1">
+                                     <li><span className="font-bold">2 คะแนน:</span> ดีมาก (มีความพร้อมสำหรับการใช้งานจริง)</li>
+                                     <li><span className="font-bold text-yellow-700">1 คะแนน:</span> พอใช้ (ควรได้รับการปรับปรุงก่อนการใช้งานจริง)</li>
+                                     <li><span className="font-bold text-red-600">0 คะแนน:</span> เสี่ยงสูง (ยังไม่มีความพร้อม)</li>
+                                   </ul>
+                                 </td>
+                               </tr>
+                               <tr className="hover:bg-gray-50 transition-colors">
+                                 <td className="px-6 py-4 font-bold text-gray-900 bg-gray-100/50 w-1/4 align-top text-red-700">หมายเหตุ</td>
+                                 <td className="px-6 py-4 leading-relaxed font-medium text-gray-800">
+                                   แบบประเมินฉบับนี้เป็นเพียงเครื่องมือที่มุ่งเน้นสนับสนุนการบริหารจัดการและการกำกับดูแลกิจการที่ดี มิได้มีวัตถุประสงค์เพื่อนำมาใช้ทดแทนขั้นตอนการตรวจสอบ การพิจารณา หรือการอนุมัติโดยคณะกรรมการจริยธรรม ฝ่ายกฎหมาย ฝ่ายจัดซื้อจัดจ้าง ตลอดจนหน่วยงานกำกับดูแลที่เกี่ยวข้องแต่อย่างใด
+                                 </td>
+                               </tr>
+                             </tbody>
+                           </table>
                          </div>
                        </div>
 
-                       <div className="flex justify-end"><button onClick={() => setActiveTab('C')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer transition">เริ่มต้นประเมิน <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></button></div>
+                       <div className="flex justify-end">
+                         <button onClick={() => handleNavChange('C1')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer transition">
+                           เริ่มต้นที่ข้อ C1 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                         </button>
+                       </div>
                      </div>
                   )}
 
-                  {/* Tab 2-5: มิติเกณฑ์การประเมิน C-U-R-E */}
-                  {['C', 'U', 'R', 'E'].includes(activeTab) && (() => {
-                    const dimData = rubrics.find(r => r.id === activeTab);
+                  {/* Rendering Question View (Score + Docs) */}
+                  {/^[CURE][1-4]$/.test(activeView) && (() => {
+                    const dimId = activeView.charAt(0);
+                    const dimData = rubrics.find(r => r.id === dimId);
+                    const questionData = dimData.questions.find(q => q.id === activeView);
+                    
+                    // หาเอกสารที่เชื่อมโยงกับข้อนี้ (โดยเทียบ prefix ของ doc.id เช่น 'doc_c1')
+                    const relatedDocs = allDocItems.filter(doc => doc.id.startsWith(`doc_${activeView.toLowerCase()}`));
+
                     return (
-                      <div className="space-y-6 animate-fadeIn">
+                      <div className="space-y-8 animate-fadeIn">
+                        {/* Header มิติ */}
                         <div className={`p-4 rounded-xl border ${dimData.color} flex items-center gap-3`}>
                           <SVGIcon name={dimData.icon} className="w-8 h-8" />
-                          <div><h2 className="text-lg font-bold">มิติที่ {activeTab === 'C' ? '1' : activeTab === 'U' ? '2' : activeTab === 'R' ? '3' : '4'}: {dimData.name}</h2><p className="text-sm opacity-90">{dimData.title}</p></div>
+                          <div>
+                            <h2 className="text-lg font-bold">มิติที่ {dimId === 'C' ? '1' : dimId === 'U' ? '2' : dimId === 'R' ? '3' : '4'}: {dimData.name}</h2>
+                            <p className="text-sm opacity-90">{dimData.title}</p>
+                          </div>
                         </div>
-                        {dimData.questions.map(q => (
-                          <div key={q.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition">
-                            <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
-                              <div>
-                                <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                  <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{q.id}</span>
-                                  {q.title}
-                                  {q.isCritical && <span className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded-full">⚠ Critical Stop</span>}
-                                </h3>
-                                <p className="text-sm text-gray-600 mt-1">{q.desc}</p>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
-                              {q.options.map(opt => {
-                                const isSelected = scores[q.id] === opt.score;
-                                const isZeroCritical = q.isCritical && opt.score === 0;
-                                return (
-                                  <div key={opt.score} onClick={() => handleScoreChange(q.id, opt.score)} className={`p-4 cursor-pointer transition ${isSelected ? (isZeroCritical ? 'bg-red-50 md:border-l-4 border-red-500' : 'bg-indigo-50 md:border-l-4 border-indigo-500') : 'hover:bg-gray-50'}`}>
-                                    <div className="flex justify-between mb-2"><span className={`font-bold ${isSelected ? (isZeroCritical ? 'text-red-700' : 'text-indigo-700') : 'text-gray-700'}`}>{opt.label} ({opt.score})</span></div>
-                                    <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">{opt.detail}</p>
-                                  </div>
-                                );
-                              })}
+
+                        {/* ส่วนที่ 1: ประเมินคะแนน */}
+                        <div id={`score-${questionData.id}`} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                          <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
+                            <div>
+                              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{questionData.id}</span>
+                                {questionData.title}
+                                {questionData.isCritical && <span className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded-full">⚠ Critical Stop</span>}
+                              </h3>
+                              <p className="text-sm text-gray-600 mt-2 leading-relaxed">{questionData.desc}</p>
                             </div>
                           </div>
-                        ))}
-                        <div className="flex justify-between mt-6">
-                          <button onClick={() => setActiveTab(tabs[tabs.findIndex(t => t.id === activeTab)-1].id)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">ย้อนกลับ</button>
-                          <button onClick={() => setActiveTab(tabs[tabs.findIndex(t => t.id === activeTab)+1].id)} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer">ถัดไป</button>
+                          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                            {questionData.options.map(opt => {
+                              const isSelected = scores[questionData.id] === opt.score;
+                              const isZeroCritical = questionData.isCritical && opt.score === 0;
+                              return (
+                                <div key={opt.score} onClick={() => handleScoreChange(questionData.id, opt.score)} className={`p-5 cursor-pointer transition ${isSelected ? (isZeroCritical ? 'bg-red-50 md:border-l-4 border-red-500' : 'bg-indigo-50 md:border-l-4 border-indigo-500') : 'hover:bg-gray-50'}`}>
+                                  <div className="flex justify-between mb-3">
+                                    <span className={`font-bold ${isSelected ? (isZeroCritical ? 'text-red-700' : 'text-indigo-700') : 'text-gray-700'}`}>{opt.label} ({opt.score})</span>
+                                    {isSelected && <svg className={`w-5 h-5 ${isZeroCritical ? 'text-red-500' : 'text-indigo-500'}`} fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>}
+                                  </div>
+                                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">{opt.detail}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })()}
 
-                  {/* Tab 6: รายการตรวจสอบเอกสารแนบ */}
-                  {activeTab === 'docs' && (
-                    <div className="space-y-6 animate-fadeIn">
-                      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                        <div className="flex justify-between items-start mb-2">
-                          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            ตรวจสอบเอกสารแนบผู้เสนอโครงการ
-                          </h2>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-6">กรุณาทำเครื่องหมายถูกในช่องรายการเอกสารที่ทางบริษัทจัดหามามอบไว้กับผู้ประเมิน เพื่อวิเคราะห์ความถูกต้อง</p>
-                        
-                        <div className="space-y-6">
-                          {documentChecklist.map((cat, idx) => (
-                            <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                              <div className="bg-gray-100 px-4 py-3 font-bold text-gray-700 border-b border-gray-200 text-sm">{cat.category}</div>
-                              <div className="divide-y divide-gray-100 bg-white">
-                                {cat.items.map(doc => {
+                        {/* ส่วนที่ 2: รายการเอกสาร */}
+                        <div id={`docs-${questionData.id}`} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+                          <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                               <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                               รายการเอกสารประกอบ ({questionData.id})
+                             </h3>
+                          </div>
+                          
+                          <div className="p-2">
+                            {relatedDocs.length > 0 ? (
+                              <div className="divide-y divide-gray-100">
+                                {relatedDocs.map(doc => {
                                   const isMandatory = doc.type === 'mandatory';
                                   const isChecked = docs[doc.id] || false;
                                   return (
@@ -934,41 +1059,44 @@
                                   );
                                 })}
                               </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* AI Draft Email request */}
-                        <div className="mt-8 border-t pt-6 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100">
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                            <div>
-                              <h3 className="font-bold text-indigo-800 text-base">ตัวช่วยสร้างหนังสือทวงถามเอกสารเพิ่มเติม</h3>
-                              <p className="text-xs text-gray-500">จำลองการประดิษฐ์จดหมายขอเอกสารเพิ่มเติมกับคู่ค้าตามข้อกำหนดด้านเครื่องมือแพทย์</p>
-                            </div>
-                            <button 
-                              onClick={handleGenerateEmail} 
-                              disabled={isGeneratingEmail} 
-                              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 cursor-pointer transition disabled:opacity-50 whitespace-nowrap"
-                            >
-                              {isGeneratingEmail ? "กำลังประมวล..." : "ร่างหนังสือ ✨"}
-                            </button>
+                            ) : (
+                              <div className="p-6 text-center text-gray-500 text-sm">
+                                ไม่มีข้อกำหนดเอกสารบังคับหรือมาตรฐานในข้อนี้
+                              </div>
+                            )}
                           </div>
-                          {aiEmailDraft && <textarea className="w-full h-48 p-3 text-sm border border-gray-300 rounded-lg bg-white shadow-inner focus:ring-2 focus:ring-indigo-500 outline-none font-sarabun" value={aiEmailDraft} onChange={(e) => setAiEmailDraft(e.target.value)} />}
+                        </div>
+
+                        {/* Navigation Buttons */}
+                        <div className="flex justify-between pt-4">
+                          <button 
+                            onClick={() => {
+                              const currIdx = navFlow.indexOf(activeView);
+                              if (currIdx > 0) handleNavChange(navFlow[currIdx - 1]);
+                            }} 
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer font-medium"
+                          >
+                            ย้อนกลับ
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const currIdx = navFlow.indexOf(activeView);
+                              if (currIdx < navFlow.length - 1) handleNavChange(navFlow[currIdx + 1]);
+                            }} 
+                            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer font-medium shadow-sm"
+                          >
+                            บันทึกและไปข้อถัดไป
+                          </button>
                         </div>
                       </div>
-                      
-                      <div className="flex justify-between">
-                        <button onClick={() => setActiveTab('E')} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">ย้อนกลับ</button>
-                        <button onClick={() => setActiveTab('glossary')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer">ถัดไป</button>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
-                  {/* Tab 7: อภิธานศัพท์ */}
-                  {activeTab === 'glossary' && renderGlossaryTab()}
+                  {/* Tab: อภิธานศัพท์ */}
+                  {activeView === 'glossary' && renderGlossaryTab()}
 
-                  {/* Tab 8: ผลสรุป */}
-                  {activeTab === 'summary' && (
+                  {/* Tab: ผลสรุป */}
+                  {activeView === 'summary' && (
                     <div className="space-y-6 animate-fadeIn">
                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center">
                          <h2 className="text-2xl font-bold text-gray-900 mb-2">มติการพิจารณาตัดสินใจเบื้องต้น</h2>
@@ -977,7 +1105,7 @@
                          <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-200 text-left mb-8">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                               <h2 className="text-lg font-bold text-indigo-900">บทสรุปผู้บริหารโดย AI</h2>
-                              <button onClick={handleGenerateSummary} disabled={isGeneratingSummary} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 cursor-pointer transition disabled:opacity-50">
+                              <button onClick={handleGenerateSummary} disabled={isGeneratingSummary} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 cursor-pointer transition disabled:opacity-50 shadow-sm">
                                 {isGeneratingSummary ? "กำลังวิเคราะห์..." : "สร้างข้อเขียนสรุป ✨"}
                               </button>
                             </div>
@@ -988,6 +1116,24 @@
                             ) : (
                               <p className="text-sm text-indigo-600/70 italic">กดยืนยันเพื่อสรุปวิเคราะห์ผลคะแนนเป็นประโยคข้อเขียนภาษาราชการ</p>
                             )}
+                         </div>
+
+                         {/* AI Draft Email request moved to Summary */}
+                         <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 text-left mb-8">
+                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                             <div>
+                               <h3 className="font-bold text-blue-800 text-base">ตัวช่วยสร้างหนังสือทวงถามเอกสารเพิ่มเติม</h3>
+                               <p className="text-xs text-gray-500">จำลองการประดิษฐ์จดหมายขอเอกสารบังคับที่ขาดอยู่จากผู้ขาย</p>
+                             </div>
+                             <button 
+                               onClick={handleGenerateEmail} 
+                               disabled={isGeneratingEmail} 
+                               className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 cursor-pointer transition disabled:opacity-50 whitespace-nowrap shadow-sm"
+                             >
+                               {isGeneratingEmail ? "กำลังประมวล..." : "ร่างจดหมายทวงเอกสาร ✨"}
+                             </button>
+                           </div>
+                           {aiEmailDraft && <textarea className="w-full h-48 p-3 text-sm border border-gray-300 rounded-lg bg-white shadow-inner focus:ring-2 focus:ring-blue-500 outline-none font-sarabun" value={aiEmailDraft} onChange={(e) => setAiEmailDraft(e.target.value)} />}
                          </div>
 
                          <div className="bg-white p-6 rounded-xl border border-gray-200 mb-4 max-w-lg mx-auto shadow-sm text-left">
@@ -1009,7 +1155,7 @@
                   )}
 
                   {/* Tab 8: ตั้งค่าคีย์ API */}
-                  {activeTab === 'settings' && (
+                  {activeView === 'settings' && (
                     <div className="space-y-6 animate-fadeIn">
                       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h2 className="text-xl font-bold text-gray-800 mb-2">ตั้งค่า API Key</h2>
@@ -1029,7 +1175,7 @@
                         </div>
                       </div>
                       <div className="flex justify-end">
-                        <button onClick={() => setActiveTab('info')} className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold cursor-pointer hover:bg-indigo-700 transition">กลับไปหน้าประเมิน</button>
+                        <button onClick={() => handleNavChange('info')} className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold cursor-pointer hover:bg-indigo-700 transition">กลับไปหน้าประเมิน</button>
                       </div>
                     </div>
                   )}
